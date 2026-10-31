@@ -1,0 +1,15 @@
+[build]
+  publish = "public"
+  functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[functions]
+  node_bundler = "esbuild"
+
+# 진행자 화면 주소: /admin
+[[redirects]]
+  from = "/admin"
+  to = "/admin.html"
+  status = 200

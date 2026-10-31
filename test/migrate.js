@@ -1,0 +1,32 @@
+// 예전 버전(아이디를 미리 만들어 두던 방식)으로 저장된 데이터가 새 방식에서 정상 동작하는지: node test/migrate.js
+const assert = require('assert');
+const { makeGame, freshCore } = require('../lib/game.js');
+
+const core = freshCore('pw');
+// 예전 데이터를 흉내 낸다: schema 없음, 예전 정원, 이름 없는 빈 아이디, present/started 필드 없음
+delete core.settings.schema;
+core.settings.pools.find.counts = [4, 16, 14];
+core.settings.pools.kku.counts = [3, 13, 10];
+core.nextId = undefined;
+core.participants = [
+  { id: 'find-0-1', pool: 'find', t0: 0, n: 1, name: '김하늘', pin: '11', birth: '2007-01-01', enroll: '2024-03', cls: 0, rank: null, groupSize: null, prevCls: 0, change: 'none', chips: [], base: 0, bonusN: 0, score: 0, missing: false },
+  { id: 'find-0-2', pool: 'find', t0: 0, n: 2, name: '', pin: '', birth: '', enroll: '', cls: 0, rank: null, groupSize: null, prevCls: 0, change: 'none', chips: [], base: 0, bonusN: 0, score: 0, missing: false },
+  { id: 'find-2-1', pool: 'find', t0: 2, n: 1, name: '이도윤', pin: '22', birth: '2009-05-05', enroll: '2025-03', cls: 2, rank: null, groupSize: null, prevCls: 2, change: 'none', chips: [], base: 0, bonusN: 0, score: 0, missing: false },
+];
+const g = makeGame({ core, history: [], subs: {} });
+assert.strictEqual(core.settings.schema, 2);
+assert.deepStrictEqual(core.settings.pools.find.counts, [4, 14, 0]);
+assert.strictEqual(core.participants.length, 2, '이름 없는 빈 아이디는 정리됨');
+assert(core.participants.every((p) => p.present === true && p.started === false));
+g.adminAction({ type: 'addPerson', pool: 'find', name: '박서준', birth: '2008-01-01', enroll: '2024-03' });
+assert(core.participants.every((p) => p.t0 === 0), '인원이 네모 정원보다 적으면 모두 네모');
+assert(core.participants.find((p) => p.name === '김하늘'));
+// 다시 만들어도(요청마다 makeGame 이 새로 만들어짐) 결과가 같다
+makeGame({ core, history: [], subs: {} });
+assert.strictEqual(core.participants.length, 3);
+console.log('OK 예전 데이터 이전: 빈 아이디 정리, 정원 새 기본값, 이름 있는 참가자 유지');
+
+// 점수표에서 나올 수 있는 가장 낮은 점수 (결과 화면 히스토그램에서 낮은 구간을 합치는 기준)
+const SP = require('../public/shared.js');
+assert.strictEqual(SP.minPossibleScore(SP.DEFAULT_TABLE, 5), 7);
+console.log('OK 최저 가능 점수 7 (칩 5개, 기본 점수표)');

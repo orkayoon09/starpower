@@ -1,0 +1,84 @@
+:root {
+  --bg: #f6f5f2;
+  --card: #ffffff;
+  --ink: #1d1d1f;
+  --ink-2: #5b5b63;
+  --line: #e4e2dc;
+  --accent: #2b2bd6;
+  --accent-ink: #ffffff;
+  --ok: #1f8a4c;
+  --warn: #b45309;
+  --bad: #c62828;
+  --radius: 14px;
+  --chip-yellow: #f4c430;
+  --chip-green: #2fa35b;
+  --chip-red: #e5483d;
+  --chip-blue: #3b82f6;
+  --chip-white: #ffffff;
+  --font: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Pretendard', 'Noto Sans KR', 'Malgun Gothic', system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--font); background: var(--bg); color: var(--ink);
+  font-size: 16px; line-height: 1.5; -webkit-text-size-adjust: 100%;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+.hidden { display: none !important; }
+.muted { color: var(--ink-2); }
+.small { font-size: 13px; }
+
+.card {
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 16px; margin-bottom: 12px;
+}
+.btn {
+  border: 1px solid var(--line); background: #fff; border-radius: 10px; padding: 9px 14px;
+  font-weight: 600; transition: transform .05s, background .15s;
+}
+.btn:hover { background: #f1f0ec; }
+.btn:active { transform: translateY(1px); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.primary:hover { background: #2222b8; }
+.btn.danger { color: var(--bad); border-color: #e8bcbc; }
+.btn.danger:hover { background: #fdeeee; }
+.btn.big { padding: 14px 18px; font-size: 17px; border-radius: 12px; width: 100%; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn.sm { padding: 5px 9px; font-size: 13px; border-radius: 8px; }
+
+input[type=text], input[type=password], input[type=number], input[type=search], select, textarea {
+  border: 1px solid var(--line); background: #fff; border-radius: 10px; padding: 10px 12px; width: 100%;
+}
+input:focus, select:focus, textarea:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* 칩 */
+.chip {
+  display: inline-block; width: 28px; height: 28px; border-radius: 50%;
+  border: 2px solid rgba(0,0,0,.22); vertical-align: middle; flex: none;
+}
+.chip.yellow { background: var(--chip-yellow); }
+.chip.green { background: var(--chip-green); }
+.chip.red { background: var(--chip-red); }
+.chip.blue { background: var(--chip-blue); }
+.chip.white { background: var(--chip-white); border-color: rgba(0,0,0,.35); }
+.chip.empty { background: #b8bcc4; border: 3px solid #9ea3ab; } /* 빈 자리: 회색으로 채워서 하양 칩(흰색 + 검은 테두리)과 구별 */
+.chip.sm { width: 16px; height: 16px; border-width: 1.5px; }
+.chip.lg { width: 46px; height: 46px; border-width: 3px; }
+.chips { display: inline-flex; gap: 3px; align-items: center; flex-wrap: nowrap; }
+
+.pill {
+  display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 3px 11px;
+  font-size: 13px; font-weight: 700; background: #ecebe6; color: var(--ink-2);
+}
+.pill.live { background: #e3f6ea; color: var(--ok); }
+.pill.live::before {
+  content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); animation: pulse 1.4s infinite;
+}
+@keyframes pulse { 50% { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) { .pill.live::before { animation: none; } }
+
+.tierdot {
+  display: inline-flex; align-items: center; justify-content: center; border-radius: 8px;
+  color: #fff; font-weight: 800; min-width: 1.7em; padding: 0 .4em; line-height: 1.7;
+}
