@@ -8,7 +8,7 @@ const keys = ['yellow', 'green', 'red', 'blue', 'white'];
 async function run(base, { password = 'testpw', push }) {
   const rand = rnd(7);
   const randChips = (n = 5) => Array.from({ length: n }, () => keys[Math.floor(rand() * 5)]);
-  let adminTok;
+  const adminTok = {};
   async function call(p, body, tok, method) {
     const r = await fetch(base + p, {
       method: method || (body ? 'POST' : 'GET'),
@@ -17,16 +17,38 @@ async function run(base, { password = 'testpw', push }) {
     });
     return { status: r.status, body: await r.json().catch(() => ({})) };
   }
-  const A = async (a) => { const r = await call('/api/admin/action', a, adminTok); if (r.status !== 200) throw new Error(a.type + ': ' + r.body.error); return r.body; };
-  const AErr = async (a) => { const r = await call('/api/admin/action', a, adminTok); assert.notStrictEqual(r.status, 200, a.type + ' should fail'); return r.body.error; };
-  const state = async () => (await call('/api/admin/state', null, adminTok)).body;
+  // 진행자는 반마다 따로 로그인한다. 아래 도우미는 '두 반 모두에게 같은 동작'을 편하게 하기 위한 것이다.
+  let mergedNow = false; // 두 반이 합쳐진 뒤에는 찾는·여는반 진행자 화면 하나로 진행
+  const act1 = async (a, scope) => { const r = await call('/api/admin/action', a, adminTok[scope]); if (r.status !== 200) throw new Error(a.type + ': ' + r.body.error); return r.body; };
+  const state1 = async (scope) => (await call('/api/admin/state', null, adminTok[scope])).body;
+  const combine = (f, k) => Object.assign({}, f, {
+    participants: [...f.participants, ...k.participants], submissions: { ...f.submissions, ...k.submissions }, bonus: { ...f.bonus, ...k.bonus },
+    labels: { ...f.labels, ...k.labels }, history: [...f.history, ...k.history].sort((x, y) => x.id - y.id), open: f.open && k.open,
+  });
+  const state = async () => (mergedNow ? state1('find') : combine(await state1('find'), await state1('kku')));
+  const scopeOf = (a) => (a.pool ? a.pool : a.pid ? String(a.pid).split('-')[0] : null);
+  const A = async (a) => {
+    const sc = scopeOf(a);
+    if (mergedNow) await act1(a, 'find');
+    else if (sc) await act1(a, sc);
+    else if (['saveSettings', 'setPassword', 'resetScoreTable'].includes(a.type)) await act1(a, 'find'); // 공유 설정은 한 번만
+    else { await act1(a, 'find'); await act1(a, 'kku'); }
+    return state();
+  };
+  const AErr = async (a) => {
+    const sc = mergedNow ? 'find' : scopeOf(a) || 'find';
+    const r = await call('/api/admin/action', a, adminTok[sc]); assert.notStrictEqual(r.status, 200, a.type + ' should fail'); return r.body.error;
+  };
 
   // 로그인
   assert.strictEqual((await call('/api/admin/login', { password: 'nope' })).status, 401);
   assert.strictEqual((await call('/api/me', null, 'garbage.token')).status, 401);
-  adminTok = (await call('/api/admin/login', { password })).body.token;
+  assert.strictEqual((await call('/api/admin/login', { password, scope: 'find' })).body.scope, 'find');
+  adminTok.find = (await call('/api/admin/login', { password, scope: 'find' })).body.token;
+  adminTok.kku = (await call('/api/admin/login', { password, scope: 'kku' })).body.token;
   let S = await state();
   assert.strictEqual(S.push, push, 'push 모드 안내');
+  assert.strictEqual((await state1('kku')).scope, 'kku');
   assert.strictEqual(S.participants.length, 0, '명단은 비어 있는 상태로 시작');
   console.log('OK 초기 상태: 빈 명단 (계급은 출석한 사람 기준으로 자동 배정)');
 
@@ -109,7 +131,7 @@ async function run(base, { password = 'testpw', push }) {
   await call('/api/submit', { chips: redo }, tokens[peopleAll[3].id]); expectedBase[peopleAll[3].id] = 40;
   await A({ type: 'setBonus', pid: peopleAll[5].id, n: 2 });
   S = await A({ type: 'close' });
-  assert.strictEqual(S.open, false); assert.strictEqual(S.history.length, 1);
+  assert.strictEqual(S.open, false); assert.strictEqual(S.history.length, 2, '반마다 기록이 하나씩');
 
   const byId = Object.fromEntries(S.participants.map((p) => [p.id, p]));
   for (const id of Object.keys(expectedBase)) {
@@ -129,7 +151,7 @@ async function run(base, { password = 'testpw', push }) {
   }
   const findSorted = S.participants.filter((p) => p.pool === 'find').sort((a, b) => a.rank - b.rank);
   for (let i = 1; i < findSorted.length; i++) assert(findSorted[i - 1].score >= findSorted[i].score);
-  assert.strictEqual(S.history[0].summary.missing, 2);
+  assert.strictEqual(S.history.reduce((a, h) => a + h.summary.missing, 0), 2);
   assert.deepStrictEqual(S.submissions, {}, '마감하면 제출 목록이 비워짐');
   console.log('OK 라운드1 마감: 점수 계산·보너스·계급 인원·순위·미제출 처리', JSON.stringify(S.history[0].summary));
 
@@ -155,6 +177,9 @@ async function run(base, { password = 'testpw', push }) {
   assert.strictEqual(S.settings.scoreTable.yellow[4], 100);
   S = await A({ type: 'close' });
   assert.strictEqual(S.participants.find((p) => p.id === peopleAll[0].id).base, 100, '노랑 5개 = 100 (개정된 점수표)');
+  // 순위 변화: 첫 집계에는 직전 순위가 없다
+  assert(S.participants.filter((p) => p.name && p.rank != null).every((p) => p.prevRank === null), '첫 집계: prevRank 없음');
+  const rank1 = Object.fromEntries(S.participants.filter((p) => p.name).map((p) => [p.id, p.rank]));
   assert.strictEqual(S.history[0].table.yellow[4], 100);
   console.log('OK 점수표 편집 -> 마감 시 새 점수표 적용');
   assert((await AErr({ type: 'saveSettings', patch: { scoreTable: { yellow: [1, 'x', 3, 4, 5] } } })).includes('점수표'));
@@ -165,7 +190,46 @@ async function run(base, { password = 'testpw', push }) {
   assert.strictEqual(S.settings.scoreTable.red.length, 6);
   assert.strictEqual((await call('/api/submit', { chips: Array(6).fill('red') }, tokens[peopleAll[1].id])).status, 200);
   S = await A({ type: 'close' });
-  assert.strictEqual(S.history.length, 2); assert.strictEqual(S.round, 2);
+  assert.strictEqual(S.history.length, 4); assert.strictEqual(S.round, 2);
+  assert(S.participants.filter((p) => p.name && p.rank != null && rank1[p.id] != null).every((p) => p.prevRank === rank1[p.id]), '두 번째 집계: prevRank = 첫 집계 순위');
+  assert(SP.rankDelta(5, 3) === 2 && SP.rankDelta(3, 5) === -2 && SP.rankDelta(4, 4) === 0 && SP.rankDelta(null, 4) === null, 'rankDelta');
+  { const q = S.participants.find((p) => p.name && p.prevRank != null);
+    const m = (await call('/api/me', null, tokens[q.id])).body;
+    assert.strictEqual(m.me.prevRank, q.prevRank); assert.strictEqual(m.me.rank, q.rank); }
+  S = await A({ type: 'undo' });
+  assert(S.participants.filter((p) => p.name && rank1[p.id] != null).every((p) => p.rank === rank1[p.id] && p.prevRank === null), '되돌리면 순위·직전순위 복원');
+  assert.strictEqual(S.open, true, '되돌리면 집계가 다시 열림');
+  S = await A({ type: 'close' });
+  assert(S.participants.filter((p) => p.name && p.rank != null && rank1[p.id] != null).every((p) => p.prevRank === rank1[p.id]));
+  console.log('OK 순위 변화: 첫 집계 없음, 이후 직전 순위, 되돌리기 복원');
+
+  // 게임 종료: 열린 집계가 있으면 불가, 종료하면 잠김, 참가자 화면에 최종 결과, 종료 취소로 재개
+  await A({ type: 'open' });
+  assert((await AErr({ type: 'endGame' })).includes('열려'), '집계가 열려 있으면 종료 불가');
+  S = await A({ type: 'close' });
+  const histLen = S.history.length, roundsDone = S.round;
+  S = await A({ type: 'endGame' });
+  assert(S.ended && S.ended.round === S.round, '종료 상태');
+  assert(JSON.stringify(S).indexOf('journeys') === -1, '진행자 화면에 journeys 원본은 넣지 않음');
+  for (const t of ['open', 'undo', 'removePerson', 'addPerson', 'importPeople', 'setPresent', 'setClass', 'setRound']) {
+    assert((await AErr({ type: t, pid: peopleAll[0].id, pool: 'find', text: 'x', name: 'x', present: false, tier: 0, round: 1 })).includes('종료'), t + ' 잠겨야 함');
+  }
+  assert((await AErr({ type: 'endGame' })).includes('이미'), '중복 종료 불가');
+  { const q = S.participants.find((p) => p.name && p.rank != null);
+    const m = (await call('/api/me', null, tokens[q.id])).body;
+    assert(m.ended && m.final, '참가자 화면에 최종 결과');
+    assert.strictEqual(m.final.journey.length, roundsDone + 1, '시작 + 라운드 수만큼 이동 기록');
+    assert.strictEqual(m.final.journey[0].r, 0); assert.strictEqual(m.final.journey[m.final.journey.length - 1].tier, q.cls);
+    assert.strictEqual(m.final.tierCounts.reduce((a, b) => a + b, 0), m.final.groupSize);
+    assert.strictEqual((await call('/api/submit', { chips: ['red'] }, tokens[q.id])).status, 409, '종료 후 제출 불가'); }
+  S = await A({ type: 'reopenGame' });
+  assert.strictEqual(S.ended, null);
+  assert.strictEqual((await call('/api/me', null, tokens[peopleAll[3].id])).body.ended, null);
+  S = await A({ type: 'open' }); S = await A({ type: 'close' }); // 종료 취소 후 다시 진행 가능
+  assert.strictEqual(S.history.length, histLen + 2);
+  S = await A({ type: 'endGame' }); S = await A({ type: 'resetGame' });
+  assert.strictEqual(S.ended, null, '게임 초기화하면 종료 상태도 풀림');
+  console.log('OK 게임 종료: 열린 집계 중 불가, 종료 후 잠금, 참가자 최종 결과, 종료 취소 후 재개, 초기화');
   console.log('OK 라운드2, 칩 최대 개수 변경(6개)');
 
   // 이전 라운드 제출이 다음 라운드로 새어 들어오지 않음
@@ -258,8 +322,30 @@ async function run(base, { password = 'testpw', push }) {
   };
 
   // 반 통합 / 인원 직접 설정 / 배정된 아이디 삭제 방지
-  await A({ type: 'saveSettings', patch: { merged: true } });
+  // 두 반 합치기: 한쪽만 누르면 합쳐지지 않고, 취소할 수 있고, 둘 다 누르면 합쳐진다
+  await act1({ type: 'open' }, 'find');
+  assert((await call('/api/admin/action', { type: 'setMergeReady', ready: true }, adminTok.find)).status === 400, '집계가 열려 있으면 합치기 불가');
+  await act1({ type: 'close' }, 'find');
+  await act1({ type: 'setMergeReady', ready: true }, 'find');
+  { const k = await state1('kku');
+    assert(!k.merge.done && !k.merge.mine && k.merge.other.ready, '상대가 합치기를 눌렀다는 표시');
+    assert((await call('/api/admin/action', { type: 'open' }, adminTok.find)).status === 400, '합치기를 눌러 둔 반은 집계를 열 수 없음');
+    await act1({ type: 'setMergeReady', ready: false }, 'find');
+    assert(!(await state1('kku')).merge.other.ready, '취소하면 풀림'); }
+  await act1({ type: 'setMergeReady', ready: true }, 'find');
+  assert(!(await state1('find')).merge.done, '한쪽만 누르면 합쳐지지 않음');
+  const roundBefore = Math.max((await state1('find')).round, (await state1('kku')).round);
+  await act1({ type: 'setMergeReady', ready: true }, 'kku');
+  mergedNow = true;
+  { const f = await state1('find'), k = await state1('kku');
+    assert(f.merge.done && k.merge.done, '둘 다 누르면 합쳐짐');
+    assert(f.settings.merged && !f.readOnly && k.readOnly, '합친 뒤 꾸는반은 보기 전용');
+    assert.strictEqual(f.round, roundBefore, '라운드 번호는 이어짐');
+    assert.strictEqual(k.participants.length, f.participants.length, '꾸는반 화면에서도 전체가 보임');
+    assert((await call('/api/admin/action', { type: 'open' }, adminTok.kku)).status === 400, '보기 전용 화면에서는 진행 불가'); }
   S = await distinctRound();
+  assert.strictEqual(S.round, roundBefore + 1, '통합 첫 라운드는 이어서');
+  assert(S.history.filter((h) => h.group === 'all').length >= 1);
   assert.deepStrictEqual([0, 1, 2].map((t) => S.participants.filter((p) => p.name && p.present !== false && p.cls === t).length), [7, 24, 29]);
   console.log('OK 반 통합: 전체 7/24/29 로 재편');
   // 게임 시작 후 늦게 온 사람은 맨 아래 계급에서 시작하고, 삭제는 막히며, 결석 처리는 된다
@@ -285,9 +371,9 @@ async function run(base, { password = 'testpw', push }) {
   console.log('OK 계급 인원 직접 설정');
 
   // 비밀번호 변경 (환경변수 지정이면 거부)
-  const pwRes = await call('/api/admin/action', { type: 'setPassword', password: 'newpw1234' }, adminTok);
+  const pwRes = await call('/api/admin/action', { type: 'setPassword', password: 'newpw1234' }, adminTok.find);
   if (S.passwordFromEnv) assert.strictEqual(pwRes.status, 400);
-  else { assert.strictEqual(pwRes.status, 200); assert.strictEqual((await call('/api/admin/state', null, adminTok)).status, 401); }
+  else { assert.strictEqual(pwRes.status, 200); assert.strictEqual((await call('/api/admin/state', null, adminTok.find)).status, 401); }
   console.log('OK 비밀번호 변경 동작 (환경변수:', !!S.passwordFromEnv, ')');
 }
 

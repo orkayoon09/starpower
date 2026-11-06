@@ -13,8 +13,22 @@ class BlobStore {
   get s() { return getStore({ name: 'starpower', consistency: 'strong' }); }
   async getCore() { return (await this.s.get('core', { type: 'json' })) ?? null; }
   async setCore(o) { await this.s.setJSON('core', o); }
-  async getHistory() { return (await this.s.get('history', { type: 'json' })) ?? []; }
-  async setHistory(a) { await this.s.setJSON('history', a); }
+  // etag 를 버전으로 쓴다: 읽은 뒤 다른 진행자가 저장했으면 저장이 거절된다
+  async getCoreV() {
+    const r = await this.s.getWithMetadata('core', { type: 'json' });
+    if (!r) return { core: null, ver: null };
+    if (r.etag) return { core: r.data, ver: r.etag };
+    // 응답에서 etag 를 못 받는 환경에서는 목록의 etag 를 먼저 읽고 그 다음에 본문을 읽는다.
+    // 그 사이에 다른 진행자가 저장했다면 etag 가 더 오래된 것이라 저장이 거절되고, 최신 상태로 다시 시도한다.
+    const { blobs } = await this.s.list({ prefix: 'core' });
+    const e = blobs.find((b) => b.key === 'core');
+    const data = await this.s.get('core', { type: 'json' });
+    return { core: data, ver: e ? e.etag : undefined };
+  }
+  async createCore(o) { return (await this.s.setJSON('core', o, { onlyIfNew: true })).modified; }
+  async setCoreIf(o, ver) { return (await this.s.setJSON('core', o, { onlyIfMatch: ver })).modified; }
+  async getHistory(g) { return (await this.s.get('history/' + g, { type: 'json' })) ?? []; }
+  async setHistory(g, a) { await this.s.setJSON('history/' + g, a); }
   async getSub(pid) { return (await this.s.get('sub/' + pid, { type: 'json' })) ?? null; }
   async setSub(pid, o) { subCache.delete('sub/' + pid); await this.s.setJSON('sub/' + pid, o); }
   async delSub(pid) { subCache.delete('sub/' + pid); await this.s.delete('sub/' + pid); }

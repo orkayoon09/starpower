@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>스타파워 참가자</title>
-<link rel="stylesheet" href="/style.css?v=1.4.0">
+<link rel="stylesheet" href="/style.css?v=2.0.0">
 <style>.chip.empty{background:#b8bcc4!important;border:3px solid #9ea3ab!important}</style>
 <style>
   .wrap { max-width: 480px; margin: 0 auto; padding: 14px 16px calc(40px + env(safe-area-inset-bottom)); }
@@ -20,6 +20,7 @@
   .stats > div + div { border-left: 1px solid rgba(255,255,255,.3); }
   .stats .v { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
   .stats .k { font-size: 12px; opacity: .9; }
+  .stats .delta { font-size: 12px; font-weight: 700; margin-top: 2px; }
   .banner { border-left: 6px solid var(--accent); }
   .banner.up { border-color: var(--ok); background: #f1faf4; }
   .banner.down { border-color: var(--warn); background: #fff7ec; }
@@ -50,12 +51,21 @@
   .field { margin: 12px 0; }
   .field label { display: block; font-weight: 700; margin-bottom: 4px; font-size: 14px; }
   .err { color: var(--bad); min-height: 1.4em; font-size: 14px; }
+  .journey { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+  .journey .st { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 44px; }
+  .jc { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 30px; border-radius: 9px; color: #fff; font-weight: 800; font-size: 16px; }
+  .journey .lb { font-size: 11px; color: var(--ink-2); }
+  .journey .ar { color: var(--ink-2); font-size: 12px; padding-bottom: 14px; }
+  .journey .mv { font-size: 11px; font-weight: 700; } .journey .mv.up { color: var(--ok); } .journey .mv.down { color: var(--warn); }
+  .endlist { margin: 10px 0 0; padding: 0; list-style: none; font-size: 15px; }
+  .endlist li .jc { width: 28px; height: 24px; font-size: 13px; }
+  .endlist li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px dashed var(--line); }
   .link { background: none; border: none; color: var(--ink-2); text-decoration: underline; padding: 8px 0; }
 </style>
 </head>
 <body>
 <div class="wrap" id="app"></div>
-<script src="/shared.js?v=1.4.0"></script>
+<script src="/shared.js?v=2.0.0"></script>
 <script>
 (function () {
   'use strict';
@@ -149,7 +159,7 @@
         <div class="tname">${esc(tier.name)} 계급</div>
         ${me.hasResult ? `
         <div class="stats">
-          <div><div class="v">${me.tied ? '<span style="font-size:14px">공동 </span>' : ''}${me.rank}<span style="font-size:14px">위</span></div><div class="k">${me.groupSize}명 중</div></div>
+          <div><div class="v">${me.tied ? '<span style="font-size:14px">공동 </span>' : ''}${me.rank}<span style="font-size:14px">위</span></div><div class="k">${me.groupSize}명 중</div>${rankDeltaHtml(me)}</div>
           <div><div class="v">${me.score}</div><div class="k">점수</div></div>
         </div>` : `<div class="sub" style="margin-top:8px">아직 집계 전이에요. 첫 집계가 끝나면 순위가 나와요.</div>`}
       </div>`;
@@ -185,6 +195,60 @@
     if (toast) html += `<div class="card small" role="status" style="position:sticky;bottom:12px;border-color:var(--accent)">${esc(toast)}</div>`;
     $app.innerHTML = html;
     bindMain();
+  }
+
+  // 게임 종료 후 화면: 내 최종 결과 요약
+  function renderEnded() {
+    const { me, config } = data;
+    const f = data.final;
+    const tier = config.tiers[me.tier];
+    const sym = (ti, extra) => `<span class="jc" style="background:${esc(config.tiers[ti].color)}" title="${esc(config.tiers[ti].name)}">${esc(config.tiers[ti].symbol)}</span>${extra || ''}`;
+    let html = `
+      <div class="top">
+        <div><div class="who">${esc(me.name)}</div><div class="id">${esc(me.label)} · ${esc(data.poolName)}</div></div>
+        <span class="pill">게임 종료</span>
+      </div>
+      <div class="card tiercard" style="background:${esc(tier.color)}">
+        <div class="sub" style="margin-bottom:6px">최종 결과</div>
+        <div class="sym" aria-hidden="true">${esc(tier.symbol)}</div>
+        <div class="tname">${esc(tier.name)} 계급</div>
+        ${me.hasResult ? `
+        <div class="stats">
+          <div><div class="v">${me.tied ? '<span style="font-size:14px">공동 </span>' : ''}${me.rank}<span style="font-size:14px">위</span></div><div class="k">${me.groupSize}명 중</div></div>
+          <div><div class="v">${me.score}</div><div class="k">점수</div></div>
+        </div>` : '<div class="sub" style="margin-top:8px">참여해 주셔서 고마워요.</div>'}
+      </div>`;
+    if (f && f.journey.length) {
+      const steps = f.journey.map((e, i) => {
+        const prev = i ? f.journey[i - 1].tier : null;
+        const mv = prev === null ? '' : e.tier < prev ? '<span class="mv up">↑</span>' : e.tier > prev ? '<span class="mv down">↓</span>' : '<span class="mv">&nbsp;</span>';
+        return `${i ? '<span class="ar" aria-hidden="true">›</span>' : ''}<div class="st">${sym(e.tier)}<span class="lb">${e.r === 0 ? '시작' : 'R' + e.r}</span>${mv}</div>`;
+      }).join('');
+      html += `<div class="card"><h2>내 계급 이동</h2>
+        <div class="journey" role="img" aria-label="라운드별 계급 이동">${steps}</div>
+        <ul class="endlist">
+          <li><span>계급이 바뀐 횟수</span><b>${f.moves}번${f.moves ? ` (↑${f.ups} ↓${f.downs})` : ''}</b></li>
+          ${f.best ? `<li><span>가장 높았던 순위</span><b>${f.best.rank}위 (라운드 ${f.best.round})</b></li>` : ''}
+          <li><span>진행한 라운드</span><b>${f.rounds}회</b></li>
+        </ul></div>`;
+    }
+    if (f) {
+      html += `<div class="card"><h2>${esc(data.poolName)} 최종 계급 인원</h2>
+        <ul class="endlist">${f.tierCounts.map((n, ti) => `<li><span>${sym(ti)} <span style="margin-left:6px">${esc(config.tiers[ti].name)}</span></span><b>${n}명</b></li>`).join('')}</ul></div>`;
+    }
+    html += `<div class="card small muted">스타파워가 끝났어요. 이제 함께 이야기를 나눠봐요.</div>`;
+    html += `<div style="text-align:center"><button class="link" id="logout">다른 사람으로 로그인</button></div>`;
+    $app.innerHTML = html;
+    bindMain();
+  }
+
+  // 직전 집계 대비 순위 변화 (직전 순위가 없으면 표시하지 않음)
+  function rankDeltaHtml(me) {
+    if (me.prevRank == null || me.rank == null) return '';
+    const d = me.prevRank - me.rank;
+    if (d > 0) return `<div class="delta">▲ ${d}계단 상승 (${me.prevRank}위 → ${me.rank}위)</div>`;
+    if (d < 0) return `<div class="delta">▼ ${-d}계단 하락 (${me.prevRank}위 → ${me.rank}위)</div>`;
+    return `<div class="delta">순위 그대로 (${me.rank}위)</div>`;
   }
 
   function renderInput() {
@@ -263,6 +327,7 @@
 
   function render() {
     if (!token || !data) return renderLogin();
+    if (data.ended) return renderEnded();
     renderMain();
   }
 

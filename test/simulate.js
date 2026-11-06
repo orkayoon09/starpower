@@ -3,6 +3,7 @@ const { spawn } = require('child_process');
 const fs = require('fs'), os = require('os'), path = require('path');
 const assert = require('assert');
 const { run } = require('./scenario');
+const { runPools } = require('./pools');
 
 const PORT = 3900 + Math.floor(Math.random() * 80);
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sp-'));
@@ -18,11 +19,12 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert(out.includes('실행 중'), 'server did not start: ' + out);
     const password = (out.match(/진행자 비밀번호\s+(\S+)/) || [])[1];
     assert(password, '터미널에 비밀번호가 표시돼야 함');
+    await runPools(`http://127.0.0.1:${PORT}`, { password });
     await run(`http://127.0.0.1:${PORT}`, { password, push: true });
     srv.kill('SIGTERM'); await sleep(400);
     const saved = JSON.parse(fs.readFileSync(path.join(dir, 'state.json'), 'utf8'));
     assert.strictEqual(saved.core.participants.filter((p) => p.name).length, 61);
-    assert(saved.history.length >= 1);
+    assert(['find', 'kku', 'all'].some((g) => (saved.history[g] || []).length >= 1), '기록이 반별로 저장돼야 함');
     console.log('OK 저장 파일 유지\n\n모든 검증 통과 (노트북 서버)');
     process.exit(0);
   } catch (e) { srv.kill(); console.error('FAIL', e.stack || e); process.exit(1); }

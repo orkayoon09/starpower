@@ -68,5 +68,11 @@
     return dp[n] === INF ? 0 : dp[n];
   }
 
-  return { DEFAULT_COLORS, DEFAULT_TABLE, calcScore, dateKey, minPossibleScore };
+  // 순위 변화: 양수면 순위가 올라감(숫자가 작아짐), 음수면 내려감, 0이면 그대로, null이면 비교할 직전 순위가 없음
+  function rankDelta(prevRank, rank) {
+    if (prevRank == null || rank == null) return null;
+    return prevRank - rank;
+  }
+
+  return { rankDelta, DEFAULT_COLORS, DEFAULT_TABLE, calcScore, dateKey, minPossibleScore };
 });
