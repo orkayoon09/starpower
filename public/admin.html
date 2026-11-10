@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스타파워 진행자</title>
-<link rel="stylesheet" href="/style.css?v=2.2.0">
+<link rel="stylesheet" href="/style.css?v=2.2.1">
 <style>
   .page { max-width: 1240px; margin: 0 auto; padding: 14px 18px 60px; }
   header.bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
@@ -91,8 +91,8 @@
 </head>
 <body>
 <div class="page" id="root"></div>
-<script src="/shared.js?v=2.2.0"></script>
-<script src="/vendor/qrcode.js?v=2.2.0"></script>
+<script src="/shared.js?v=2.2.1"></script>
+<script src="/vendor/qrcode.js?v=2.2.1"></script>
 <script>
 (function () {
   'use strict';
@@ -175,7 +175,7 @@
   const histLabel = (h) => (S.settings.merged && h.group !== 'all' && S.settings.pools[h.group] ? `${S.settings.pools[h.group].name} 라운드 ${h.round}` : `라운드 ${h.round}`);
   const histShort = (h) => (S.settings.merged && h.group !== 'all' && S.settings.pools[h.group] ? `${S.settings.pools[h.group].short} R${h.round}` : `R${h.round}`);
   const colorName = (k) => (colors().find((c) => c.key === k) || {}).name || k;
-  const APP_VERSION = '2.2.0'; // 서버(lib/version.js)와 같아야 한다
+  const APP_VERSION = '2.2.1'; // 서버(lib/version.js)와 같아야 한다
   // 칩을 정확히 n개 가졌을 때 나올 수 있는 가장 낮은 점수. shared.js 가 예전 파일이어도 화면이 깨지지 않도록 여기에도 둔다.
   const minPossible = SP.minPossibleScore || ((table, n) => {
     let dp = Array(n + 1).fill(Infinity); dp[0] = 0;
@@ -389,29 +389,44 @@
         <div><button class="btn primary" data-act="alertSave">저장</button></div></div>` : ''}</div>`;
   }
 
+  // 보기 전환 버튼(전체 / 제출자만 / 미제출만 / 구속자만) 과 검색 칸.
+  // 검색 칸은 다시 그리지 않는다: 한글 입력 중(조합 중)에 칸이 새로 그려지면 입력이 끊겨 ㅇㅏ 처럼 풀어져 입력되기 때문.
+  // 글자를 칠 때는 표 안쪽(#tblWrap)만 바꾼다.
+  const jailedList = () => active().filter((p) => p.jailed);
+  function tableToolbar(items) {
+    const nJ = jailedList().length;
+    return `<span class="seg" role="group" aria-label="보기">${items.map(([k, l, n]) => `<button class="btn sm ${ui.sub === k ? 'primary' : ''}" data-act="subFilter" data-v="${k}" aria-pressed="${ui.sub === k}">${l} ${n}</button>`).join(' ')}</span>
+        ${nJ ? `<button class="btn sm" data-act="releaseAll">전체 석방 (${nJ}명)</button>` : ''}
+        <input type="search" id="filter" placeholder="이름·아이디 검색" value="${esc(ui.filter)}" style="width:200px">`;
+  }
+  const matchFilter = (p) => { const f = ui.filter.trim().toLowerCase(); return !f || p.name.toLowerCase().includes(f) || (S.labels[p.id] || '').toLowerCase().includes(f); };
+  const jailBtn = (p) => `<button class="btn sm ${p.jailed ? '' : 'danger'}" data-act="jail" data-pid="${esc(p.id)}" data-j="${p.jailed ? 0 : 1}">${p.jailed ? '석방' : '구속'}</button>`;
+
   // 집계 중이 아닐 때 참가자의 칩·보너스 칩을 고치는 표. 점수만 바뀌고 순위와 계급은 다음 마감 때까지 그대로다.
-  function scoreEditTable() {
-    const f = ui.filter.trim().toLowerCase();
-    const list = sortedActive().filter((p) => !f || p.name.toLowerCase().includes(f) || (S.labels[p.id] || '').toLowerCase().includes(f));
-    if (!active().length) return '';
+  function scoreEditInner() {
+    const mode = ui.sub === 'jail' ? 'jail' : 'all';
+    const list = sortedActive().filter((p) => matchFilter(p) && (mode === 'all' || p.jailed));
     const rows = list.map((p) => `<tr>
         <td>${badge(p.cls)}</td><td class="small muted">${esc(S.labels[p.id])}</td>
         <td><b>${esc(p.name)}</b>${p.jailed ? ' ' + SP.jailIcon(16) : ''}</td>
         <td>${p.chips.length ? `<span class="chips">${p.chips.map((c) => chip(c, 'sm')).join('')}</span>` : '<span class="muted small">없음</span>'}</td>
         <td class="num">${p.base}</td><td class="num">${p.bonusN}</td><td class="num"><b>${p.score}</b></td>
-        <td><button class="btn sm" data-act="chips" data-pid="${esc(p.id)}">점수 수정</button></td></tr>`).join('');
+        <td style="white-space:nowrap"><button class="btn sm" data-act="chips" data-pid="${esc(p.id)}">점수 수정</button> ${jailBtn(p)}</td></tr>`).join('');
+    return `<table class="t"><thead><tr><th>계급</th><th>아이디</th><th>이름</th><th>칩</th><th>칩 점수</th><th>보너스 칩</th><th>점수</th><th></th></tr></thead><tbody>${rows || `<tr><td colspan="8" class="muted">${mode === 'jail' ? '구속된 사람이 없어요' : '표시할 참가자가 없어요'}</td></tr>`}</tbody></table>`;
+  }
+  function scoreEditTable() {
+    if (!active().length) return '';
+    if (ui.sub === 'sub' || ui.sub === 'miss') ui.sub = 'all';
     return `<div class="card">
       <div class="row" style="margin-bottom:10px"><h2 style="margin:0">참가자 점수</h2><span class="sp" style="flex:1"></span>
-        <input type="search" id="filter" placeholder="이름·아이디 검색" value="${esc(ui.filter)}" style="width:200px"></div>
-      <div class="scroll"><table class="t"><thead><tr><th>계급</th><th>아이디</th><th>이름</th><th>칩</th><th>칩 점수</th><th>보너스 칩</th><th>점수</th><th></th></tr></thead><tbody>${rows || '<tr><td colspan="8" class="muted">표시할 참가자가 없어요</td></tr>'}</tbody></table></div>
-      <p class="hint">칩이나 보너스 칩을 고치면 점수만 바뀌고, <b>순위와 계급은 다음 집계를 마감할 때 반영</b>돼요. 직전 결과 탭의 점수도 같이 고쳐져요. 다음 집계에서 제출하지 않으면 고친 값이 그대로 이어져요.</p></div>`;
+        ${tableToolbar([['all', '전체', active().length], ['jail', '구속자만', jailedList().length]])}</div>
+      <div class="scroll" id="tblWrap">${scoreEditInner()}</div>
+      <p class="hint">칩이나 보너스 칩을 고치면 점수만 바뀌고, <b>순위와 계급은 다음 집계를 마감할 때 반영</b>돼요. 직전 결과 탭의 점수도 같이 고쳐져요. 다음 집계에서 제출하지 않으면 고친 값이 그대로 이어져요. 구속된 사람은 칩을 제출할 수 없어요(순위·계급은 그대로 계산돼요).</p></div>`;
   }
 
-  function tallyTable() {
-    const f = ui.filter.trim().toLowerCase();
-    const list = sortedActive().filter((p) => (!f || p.name.toLowerCase().includes(f) || (S.labels[p.id] || '').toLowerCase().includes(f)) && (ui.sub === 'all' || (ui.sub === 'sub') === !!S.submissions[p.id]));
+  function tallyInner() {
+    const list = sortedActive().filter((p) => matchFilter(p) && (ui.sub === 'all' || (ui.sub === 'jail' ? !!p.jailed : (ui.sub === 'sub') === !!S.submissions[p.id])));
     if (ui.sub === 'sub') list.sort((a, b) => (S.submissions[b.id].ts || 0) - (S.submissions[a.id].ts || 0)); // 제출자만: 최근 제출 순
-    const nSub = active().filter((p) => S.submissions[p.id]).length;
     const hm = (t) => (t ? new Date(t).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : '');
     const rows = list.map((p) => {
       const sub = S.submissions[p.id];
@@ -427,15 +442,18 @@
         <td class="small muted num">${sub ? hm(sub.ts) : ''}</td>
         <td><span class="stepper"><button class="btn sm" data-act="bonus" data-pid="${esc(p.id)}" data-d="-1" aria-label="보너스 칩 줄이기">−</button><b>${bn}</b><button class="btn sm" data-act="bonus" data-pid="${esc(p.id)}" data-d="1" aria-label="보너스 칩 늘리기">+</button></span></td>
         <td class="num"><b>${sum}</b></td>
-        <td><button class="btn sm" data-act="chips" data-pid="${esc(p.id)}">입력/수정</button></td>
+        <td style="white-space:nowrap"><button class="btn sm" data-act="chips" data-pid="${esc(p.id)}">입력/수정</button> ${jailBtn(p)}</td>
       </tr>`;
     }).join('');
+    return `<table class="t"><thead><tr><th>계급</th><th>아이디</th><th>이름</th><th>입력한 칩</th><th>칩 점수</th><th>제출 시각</th><th>보너스 칩</th><th>합계</th><th></th></tr></thead><tbody>${rows || `<tr><td colspan="9" class="muted">${ui.sub === 'jail' ? '구속된 사람이 없어요' : '표시할 참가자가 없어요'}</td></tr>`}</tbody></table>`;
+  }
+  function tallyTable() {
+    const nSub = active().filter((p) => S.submissions[p.id]).length;
     return `<div class="card">
       <div class="row" style="margin-bottom:10px"><h2 style="margin:0">제출 현황</h2><span class="sp" style="flex:1"></span>
-        <span class="seg" role="group" aria-label="보기">${[['all', '전체', active().length], ['sub', '제출자만', nSub], ['miss', '미제출만', active().length - nSub]].map(([k, l, n]) => `<button class="btn sm ${ui.sub === k ? 'primary' : ''}" data-act="subFilter" data-v="${k}" aria-pressed="${ui.sub === k}">${l} ${n}</button>`).join(' ')}</span>
-        <input type="search" id="filter" placeholder="이름·아이디 검색" value="${esc(ui.filter)}" style="width:200px"></div>
-      <div class="scroll"><table class="t"><thead><tr><th>계급</th><th>아이디</th><th>이름</th><th>입력한 칩</th><th>칩 점수</th><th>제출 시각</th><th>보너스 칩</th><th>합계</th><th></th></tr></thead><tbody>${rows || '<tr><td colspan="9" class="muted">표시할 참가자가 없어요</td></tr>'}</tbody></table></div>
-      <p class="hint">미제출자는 마감하면 직전 칩·점수가 유지돼요. ‘합계’는 칩 점수 + 보너스 칩 점수예요.</p></div>`;
+        ${tableToolbar([['all', '전체', active().length], ['sub', '제출자만', nSub], ['miss', '미제출만', active().length - nSub], ['jail', '구속자만', jailedList().length]])}</div>
+      <div class="scroll" id="tblWrap">${tallyInner()}</div>
+      <p class="hint">미제출자는 마감하면 직전 칩·점수가 유지돼요. ‘합계’는 칩 점수 + 보너스 칩 점수예요. 구속된 사람은 칩을 제출할 수 없어요.</p></div>`;
   }
 
   // ------------------------------------------------------------ 결과 탭
@@ -479,9 +497,7 @@
       <div class="kpi"><div class="v" style="color:var(--ok)">${up}</div><div class="k">계급이 올라간 사람</div></div>
       <div class="kpi"><div class="v" style="color:var(--warn)">${down}</div><div class="k">계급이 내려간 사람</div></div>
       <div class="kpi"><div class="v">${stay}</div><div class="k">그대로</div></div>
-      <div class="kpi"><div class="v">${avgNow.toFixed(1)}</div><div class="k">평균 점수<br><span class="small">${avgDelta == null ? '비교할 지난 라운드가 없어요' : `지난 라운드 대비 <b style="color:var(--${avgDelta > 0 ? 'ok' : avgDelta < 0 ? 'warn' : 'muted'})">${avgDelta > 0 ? '▲' : avgDelta < 0 ? '▼' : '＝'} ${Math.abs(avgDelta).toFixed(1)}점</b>`}</span></div></div>
-      ${rs.some((r) => r.prevRank != null) ? `<div class="kpi"><div class="v"><span style="color:var(--ok)">▲${rs.filter((r) => r.prevRank != null && r.prevRank > r.rank).length}</span> <span style="color:var(--warn)">▼${rs.filter((r) => r.prevRank != null && r.prevRank < r.rank).length}</span></div><div class="k">순위가 오른 / 내린 사람</div></div>` : ''}
-      ${missing ? `<div class="kpi"><div class="v" style="color:var(--bad)">${missing}</div><div class="k">미제출 (이전 점수 유지)</div></div>` : ''}
+      <div class="kpi"><div class="v">${avgNow.toFixed(1)}<span class="small" style="font-weight:700">점</span>${avgDelta == null ? '' : ` <span class="small" style="font-weight:700;color:var(--${avgDelta > 0 ? 'ok' : avgDelta < 0 ? 'warn' : 'ink-2'})">${avgDelta > 0 ? '▲' : avgDelta < 0 ? '▼' : '＝'} ${Math.abs(avgDelta).toFixed(1)}점</span>`}</div><div class="k">평균 점수</div></div>
       <div class="kpi"><div class="v">${esc(histLabel(h))}</div><div class="k">${new Date(h.closedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} 마감</div></div></div>`;
 
     const cols = tiers().map((t, ti) => {
@@ -497,8 +513,7 @@
         }).join('') || '<p class="muted small">없음</p>'}</div>`;
     }).join('');
 
-    const tieNote = rs.some((r) => r.tied) ? `<p class="muted small" style="margin:0 0 10px">동점자는 기존 계급 유지, 생년월일, 기수 순서로 계급 자리를 채워요. 계급별 인원은 항상 정원 그대로예요.</p>` : '';
-    return ctrl + kpis + tieNote + `<div class="cols">${cols}</div>` + histogram(rs, h) + discussion(rs);
+    return ctrl + kpis + `<div class="cols">${cols}</div>` + histogram(rs, h);
   }
 
   // ------------------------------------------------------------ 최종 결과 탭
@@ -626,16 +641,6 @@
       <div class="hist">${cols}</div></div>`;
   }
 
-  function discussion(rs) {
-    const blocks = tiers().map((t, ti) => {
-      const m = rs.filter((r) => r.to === ti).sort((a, b) => a.rank - b.rank);
-      const half = Math.ceil(m.length / 2);
-      const name = (r) => esc((P(r.pid) || {}).name || r.name || r.pid);
-      return `<div><b>${badge(ti)}</b><div class="small" style="margin-top:4px">A조 (점수 높은 쪽): ${m.slice(0, half).map(name).join(', ') || '-'}</div><div class="small">B조 (점수 낮은 쪽): ${m.slice(half).map(name).join(', ') || '-'}</div></div>`;
-    }).join('');
-    return `<div class="card noboard"><details><summary style="cursor:pointer;font-weight:700">토론 그룹 나누기 (계급별로 점수 절반씩)</summary><div style="display:grid;gap:10px;margin-top:10px">${blocks}</div></details></div>`;
-  }
-
   // ------------------------------------------------------------ 참가자 탭
   function peopleView() {
     const pools = myPools();
@@ -671,7 +676,7 @@
           <td><input type="${ui.showPin ? 'text' : 'password'}" data-f="pin" value="${esc(p.pin)}" maxlength="4" inputmode="numeric" autocomplete="new-password" aria-label="${esc(p.name)} PIN" style="width:72px;text-align:center"></td>
           <td><input type="text" data-f="birth" value="${esc(p.birth)}" placeholder="2008-03-14" style="width:120px"></td>
           <td><input type="text" data-f="enroll" value="${esc(p.enroll)}" placeholder="2024-03" style="width:100px"></td>
-          <td style="white-space:nowrap"><button class="btn sm" data-act="jail" data-pid="${esc(p.id)}" data-j="${p.jailed ? 0 : 1}">${p.jailed ? '석방' : '감옥'}</button> <button class="btn sm" data-act="saveRow" data-pid="${esc(p.id)}">저장</button> <button class="btn sm danger" data-act="removeRow" data-pid="${esc(p.id)}">삭제</button></td>
+          <td style="white-space:nowrap"><button class="btn sm" data-act="saveRow" data-pid="${esc(p.id)}">저장</button> <button class="btn sm danger" data-act="removeRow" data-pid="${esc(p.id)}">삭제</button></td>
         </tr>`).join('');
       const here = mine.filter((p) => p.present !== false).length;
       const cnt = [0, 1, 2].map((t) => mine.filter((p) => p.present !== false && (S.round > 0 ? p.cls : p.t0) === t).length);
@@ -679,11 +684,9 @@
         <div class="scroll"><table class="t"><thead><tr><th>출석</th><th>${started ? '현재 계급' : '초기 계급'}</th><th>이름</th><th>PIN</th><th>생년월일</th><th>입학시기</th><th></th></tr></thead><tbody>${rows || '<tr><td colspan="7" class="muted">아직 명단이 없어요. 위에서 붙여넣거나 한 명씩 추가하세요.</td></tr>'}</tbody></table></div></div>`;
     }).join('');
 
-    const jailedN = S.participants.filter((p) => p.name && p.jailed).length;
     const legacyPins = S.participants.filter((p) => p.name && !/^\d{4}$/.test(p.pin)).length;
     const legacyNote = legacyPins ? `<div class="card noprint" style="margin-bottom:10px"><b>예전 방식(2자리) PIN이 ${legacyPins}명 있어요.</b> <span class="small">로그인은 그대로 되지만, 4자리로 바꾸려면 아래 <b>PIN 전체 다시 만들기</b>를 누르고 안내문을 다시 인쇄하세요.</span></div>` : '';
     return legacyNote + importCard + `<div class="row noprint" style="margin-bottom:10px">
-      <button class="btn" data-act="releaseAll" ${jailedN ? '' : 'disabled'}>전체 석방${jailedN ? ` (${jailedN}명)` : ''}</button>
       <button class="btn" data-act="togglePin" aria-pressed="${ui.showPin}">${ui.showPin ? 'PIN 숨기기' : 'PIN 보이기'}</button>
       <button class="btn" data-act="print">이름·PIN 명단 인쇄</button>
       <button class="btn" data-act="csv">현재 상태 CSV로 내보내기</button>
@@ -879,8 +882,8 @@
     addPerson: () => act({ type: 'addPerson', pool: document.getElementById('addPool').value, name: document.getElementById('addName').value, birth: document.getElementById('addBirth').value, enroll: document.getElementById('addEnroll').value }, '추가했어요'),
     saveRow: (el) => act({ type: 'updateParticipant', pid: el.dataset.pid, fields: readRow(el.dataset.pid) }, '저장했어요'),
     removeRow: (el) => { const p = P(el.dataset.pid); if (confirm(S.round > 0 ? `${p.name} 님을 명단에서 삭제할까요?\n게임이 이미 시작돼서 지난 라운드 기록에는 이름만 남아요. 잠깐 빠지는 거라면 삭제 대신 출석 체크를 빼세요.` : `${p.name} 님을 명단에서 삭제할까요?`)) act({ type: 'removePerson', pid: p.id }, '삭제했어요'); },
-    jail: (el) => { const p = P(el.dataset.pid); const j = el.dataset.j === '1'; act({ type: 'setJailed', pid: el.dataset.pid, jailed: j }, j ? `${p.name} 님을 감옥에 보냈어요` : `${p.name} 님을 석방했어요`); },
-    releaseAll: () => { const n = S.participants.filter((p) => p.name && p.jailed).length; if (n && confirm(`수감 중인 ${n}명을 모두 석방할까요?`)) act({ type: 'releaseAll' }, `${n}명을 석방했어요`); },
+    jail: (el) => { const p = P(el.dataset.pid); const j = el.dataset.j === '1'; act({ type: 'setJailed', pid: el.dataset.pid, jailed: j }, j ? `${p.name} 님을 구속했어요` : `${p.name} 님을 석방했어요`); },
+    releaseAll: () => { const n = S.participants.filter((p) => p.name && p.jailed).length; if (n && confirm(`구속 중인 ${n}명을 모두 석방할까요?`)) act({ type: 'releaseAll' }, `${n}명을 석방했어요`); },
     togglePin: () => { ui.showPin = !ui.showPin; render(); }, // 기본은 숨김. 새로고침하면 다시 숨겨진다 (화면 공유 중 노출 방지)
     regenPins: () => { if (confirm('모든 참가자의 PIN을 새로 만들까요? 이미 안내했다면 다시 안내해야 해요.')) act({ type: 'regeneratePins' }, 'PIN을 새로 만들었어요'); },
     print: () => {
@@ -949,7 +952,7 @@
     if (el && handlers[el.dataset.act]) { ev.preventDefault(); handlers[el.dataset.act](el); }
   });
   root.addEventListener('input', (ev) => {
-    if (ev.target.id === 'filter') { ui.filter = ev.target.value; const pos = ev.target.selectionStart; pending = false; render(); const f = document.getElementById('filter'); f.focus(); f.setSelectionRange(pos, pos); }
+    if (ev.target.id === 'filter') { ui.filter = ev.target.value; const w = document.getElementById('tblWrap'); if (w) w.innerHTML = S.open ? tallyInner() : scoreEditInner(); }
   });
   root.addEventListener('change', (ev) => {
     const t = ev.target;

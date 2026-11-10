@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>스타파워 참가자</title>
-<link rel="stylesheet" href="/style.css?v=2.2.0">
+<link rel="stylesheet" href="/style.css?v=2.2.1">
 <style>.chip.empty{background:#b8bcc4!important;border:3px solid #9ea3ab!important}</style>
 <style>
   .wrap { max-width: 480px; margin: 0 auto; padding: 14px 16px calc(40px + env(safe-area-inset-bottom)); }
@@ -65,7 +65,7 @@
 </head>
 <body>
 <div class="wrap" id="app"></div>
-<script src="/shared.js?v=2.2.0"></script>
+<script src="/shared.js?v=2.2.1"></script>
 <script>
 (function () {
   'use strict';
@@ -178,7 +178,7 @@
     }
 
     if (me.jailed) {
-      html += `<div class="card" style="border-color:#3b3f4a"><h2 style="display:flex;align-items:center;gap:8px">${SP.jailIcon(22)} 수감 중</h2><p class="muted" style="margin:0">지금은 칩을 입력할 수 없어요. 석방되면 이 화면에서 다시 입력할 수 있어요.</p></div>`;
+      html += `<div class="card" style="background:#15171c;border:3px solid #000;color:#fff;text-align:center;padding:28px 16px"><div style="display:flex;justify-content:center">${SP.jailIcon(96)}</div><div style="font-size:44px;font-weight:900;line-height:1.15;margin-top:10px;letter-spacing:.02em">수감 중</div><p style="margin:12px 0 0;font-size:20px;font-weight:700;line-height:1.4">지금은 칩을 제출할 수 없어요</p><p style="margin:6px 0 0;font-size:15px;color:#c9ccd4">석방되면 이 화면에서 다시 입력할 수 있어요.<br>순위와 계급은 그대로 계산돼요.</p></div>`;
     } else if (data.open) html += renderInput();
     else {
       html += `<div class="card"><h2>점수 입력</h2><p class="muted" style="margin:0">진행자가 집계를 열면 여기서 칩을 입력할 수 있어요.</p></div>`;
