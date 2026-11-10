@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>스타파워 참가자</title>
-<link rel="stylesheet" href="/style.css?v=2.0.0">
+<link rel="stylesheet" href="/style.css?v=2.2.0">
 <style>.chip.empty{background:#b8bcc4!important;border:3px solid #9ea3ab!important}</style>
 <style>
   .wrap { max-width: 480px; margin: 0 auto; padding: 14px 16px calc(40px + env(safe-area-inset-bottom)); }
@@ -65,7 +65,7 @@
 </head>
 <body>
 <div class="wrap" id="app"></div>
-<script src="/shared.js?v=2.0.0"></script>
+<script src="/shared.js?v=2.2.0"></script>
 <script>
 (function () {
   'use strict';
@@ -120,10 +120,10 @@
     $app.innerHTML = `
       <div class="login card">
         <h1>스타파워</h1>
-        <p class="muted">진행자가 알려준 이름과 숫자 2자리로 들어와주세요.</p>
+        <p class="muted">진행자가 알려준 이름과 숫자 4자리로 들어와주세요.</p>
         <form id="lf">
           <div class="field"><label for="n">이름</label><input id="n" type="text" autocomplete="off" autocapitalize="off" required></div>
-          <div class="field"><label for="p">숫자 2자리</label><input id="p" type="text" inputmode="numeric" pattern="[0-9]{2}" maxlength="2" autocomplete="off" required></div>
+          <div class="field"><label for="p">숫자 4자리</label><input id="p" type="text" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="off" required></div>
           <div class="err" role="alert">${esc(loginError)}</div>
           <button class="btn primary big" ${busy ? 'disabled' : ''}>들어가기</button>
         </form>
@@ -177,7 +177,9 @@
       html += `<div class="card small muted">이번 집계에서는 계급이 그대로예요.</div>`;
     }
 
-    if (data.open) html += renderInput();
+    if (me.jailed) {
+      html += `<div class="card" style="border-color:#3b3f4a"><h2 style="display:flex;align-items:center;gap:8px">${SP.jailIcon(22)} 수감 중</h2><p class="muted" style="margin:0">지금은 칩을 입력할 수 없어요. 석방되면 이 화면에서 다시 입력할 수 있어요.</p></div>`;
+    } else if (data.open) html += renderInput();
     else {
       html += `<div class="card"><h2>점수 입력</h2><p class="muted" style="margin:0">진행자가 집계를 열면 여기서 칩을 입력할 수 있어요.</p></div>`;
     }

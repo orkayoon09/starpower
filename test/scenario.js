@@ -90,17 +90,26 @@ async function run(base, { password = 'testpw', push }) {
     const r = await call('/api/login', { name: p.name, pin: p.pin });
     assert.strictEqual(r.status, 200, p.name); tokens[p.id] = r.body.token;
   }));
-  const bad = await call('/api/login', { name: peopleAll[0].name, pin: peopleAll[0].pin === '00' ? '01' : '00' });
+  const bad = await call('/api/login', { name: peopleAll[0].name, pin: peopleAll[0].pin === '0000' ? '0001' : '0000' });
   assert.strictEqual(bad.status, 401);
   // 타 참가자 토큰으로 관리자 API 접근 불가
   assert.strictEqual((await call('/api/admin/state', null, tokens[peopleAll[0].id])).status, 401);
   console.log('OK 이름+PIN 로그인 60명 (동시), 참가자 토큰으로 관리자 접근 차단');
 
+  // PIN 은 숫자 4자리
+  assert(peopleAll.every((p) => /^\d{4}$/.test(p.pin)), '자동 발급 PIN 은 모두 4자리');
+  assert((await AErr({ type: 'addPerson', pool: 'find', name: '핀시험', pin: '12' })).includes('4자리'), '2자리 PIN 은 거부');
+  assert((await AErr({ type: 'updateParticipant', pid: peopleAll[0].id, fields: { pin: '123' } })).includes('4자리'), '3자리 PIN 수정 거부');
+  S = await A({ type: 'regeneratePins' });
+  assert(S.participants.filter((p) => p.name && p.present !== false && p.pool === 'find').every((p) => /^\d{4}$/.test(p.pin)));
+  for (const p of S.participants.filter((q) => q.name)) peopleAll.find((x) => x.id === p.id).pin = p.pin; // 이후 로그인 시험에 새 PIN 사용
+  console.log('OK PIN 4자리: 자동 발급·수정 검증, 다시 만들기');
+
   // 로그인 실패 제한
   const victim = peopleAll[1];
   let locked = false;
   for (let i = 0; i < 12 && !locked; i++) {
-    const wrong = String((Number(victim.pin) + 1 + i) % 100).padStart(2, '0');
+    const wrong = String((Number(victim.pin) + 1 + i) % 10000).padStart(4, '0');
     const r = await call('/api/login', { name: victim.name, pin: wrong });
     if (r.status === 429) locked = true;
   }
@@ -140,7 +149,7 @@ async function run(base, { password = 'testpw', push }) {
     assert.strictEqual(p.score, expectedBase[id] + (id === peopleAll[5].id ? 6 : 0));
   }
   const countTier = (pool, t) => S.participants.filter((p) => p.pool === pool && p.name && p.cls === t).length;
-  // 점수가 높은 사람이 더 낮은 계급에 있으면 안 되고, 같은 점수는 공동 순위. 동점이 경계에 걸리면 인원이 정원과 다를 수 있다.
+  // 점수가 높은 사람이 더 낮은 계급에 있으면 안 되고, 같은 점수는 공동 순위. 동점이 경계에 걸려도 계급별 인원은 정원 그대로다.
   for (const pool of ['find', 'kku']) {
     const grp = S.participants.filter((p) => p.pool === pool && p.name);
     for (const a of grp) for (const b of grp) {
@@ -148,6 +157,8 @@ async function run(base, { password = 'testpw', push }) {
       if (a.score === b.score) assert.strictEqual(a.rank, b.rank, '동점은 공동 순위');
     }
     assert.strictEqual([0, 1, 2].reduce((n, t) => n + countTier(pool, t), 0), grp.length);
+    const quota = S.settings.pools[pool].counts;
+    assert.deepStrictEqual([0, 1].map((t) => countTier(pool, t)), [quota[0], quota[1]], pool + ' 계급 인원은 정원 그대로');
   }
   const findSorted = S.participants.filter((p) => p.pool === 'find').sort((a, b) => a.rank - b.rank);
   for (let i = 1; i < findSorted.length; i++) assert(findSorted[i - 1].score >= findSorted[i].score);
@@ -188,6 +199,11 @@ async function run(base, { password = 'testpw', push }) {
   await A({ type: 'open' });
   S = await A({ type: 'saveSettings', patch: { maxChips: 6 } });
   assert.strictEqual(S.settings.scoreTable.red.length, 6);
+  // 6개 이상: '5개 점수 + (n-5)개 점수' (하양 6개 = 16 + 1 = 17)
+  // (이 시점의 점수표는 앞에서 편집한 값이라, 현재 표의 값으로 기대값을 계산한다)
+  { const tb = S.settings.scoreTable; for (const k of Object.keys(tb)) assert.strictEqual(tb[k][5], tb[k][4] + tb[k][0], k + ' 6개 = 5개 점수 + 1개 점수'); }
+  { const t = (await A({ type: 'saveSettings', patch: { maxChips: 10 } })).settings.scoreTable.white; for (let n = 6; n <= 10; n++) assert.strictEqual(t[n - 1], t[4] + t[n - 6]); }
+  S = await A({ type: 'saveSettings', patch: { maxChips: 6 } });
   assert.strictEqual((await call('/api/submit', { chips: Array(6).fill('red') }, tokens[peopleAll[1].id])).status, 200);
   S = await A({ type: 'close' });
   assert.strictEqual(S.history.length, 4); assert.strictEqual(S.round, 2);
@@ -211,7 +227,7 @@ async function run(base, { password = 'testpw', push }) {
   S = await A({ type: 'endGame' });
   assert(S.ended && S.ended.round === S.round, '종료 상태');
   assert(JSON.stringify(S).indexOf('journeys') === -1, '진행자 화면에 journeys 원본은 넣지 않음');
-  for (const t of ['open', 'undo', 'removePerson', 'addPerson', 'importPeople', 'setPresent', 'setClass', 'setRound']) {
+  for (const t of ['open', 'undo', 'removePerson', 'addPerson', 'importPeople', 'setPresent', 'setScore', 'setJailed', 'releaseAll', 'setClass', 'setRound']) {
     assert((await AErr({ type: t, pid: peopleAll[0].id, pool: 'find', text: 'x', name: 'x', present: false, tier: 0, round: 1 })).includes('종료'), t + ' 잠겨야 함');
   }
   assert((await AErr({ type: 'endGame' })).includes('이미'), '중복 종료 불가');
@@ -238,7 +254,7 @@ async function run(base, { password = 'testpw', push }) {
   assert.deepStrictEqual(S.submissions, {}, '새 라운드는 빈 상태로 시작');
   await A({ type: 'close' });
 
-  // 동점 처리: 공동 순위 + 경계에 걸친 동점자는 원래 계급 유지(정원 조정)
+  // 동점 처리: 공동 순위로 표시하되 계급 정원은 그대로. 동점자는 기존 계급 유지 -> 생년월일 -> 기수 순으로 자리를 채운다
   await A({ type: 'resetGame' });
   await A({ type: 'saveSettings', patch: { scoreTable: SP.DEFAULT_TABLE, maxChips: 5 } });
   S = await state();
@@ -273,14 +289,19 @@ async function run(base, { password = 'testpw', push }) {
   assert(ids[0].every((p) => f(p.id).cls === 0) && ids[1].slice(0, 5).every((p) => f(p.id).cls === 1), '경계에 걸친 동점자는 원래 계급 유지');
   const cnt0 = S.participants.filter((p) => p.pool === 'kku' && p.name && p.cls === 0).length;
   assert.strictEqual(cnt0, 3);
-  // 동그라미 출신 1명이 단독 1위가 되면 네모로 올라가고, 나머지 13명(네모 3 + 세모 10)은 공동 2위로 모두 원래 계급 유지 -> 인원이 4/10/12 로 조정됨
+  // 동그라미 출신 1명이 단독 1위가 되면 네모 자리 하나를 차지하고, 나머지 13명(네모 3 + 세모 10)은 공동 2위.
+  // 정원은 그대로(3/10/13)라서 줄 맨 끝(기존 계급이 같으면 생년월일이 늦은 쪽)이 한 계급씩 내려간다:
+  // 네모 출신 중 생년월일이 가장 늦은 1명이 세모로, 세모 출신 중 가장 늦은 1명이 동그라미로.
   const climber = ids[2][0];
   S = await submitAll((p) => (p.id === climber.id ? high : p.t0 === 2 ? low : mid));
   assert.strictEqual(f(climber.id).cls, 0); assert.strictEqual(f(climber.id).rank, 1); assert(!f(climber.id).tied);
-  assert(ids[0].every((p) => f(p.id).cls === 0 && f(p.id).rank === 2 && f(p.id).tied));
-  assert(ids[1].every((p) => f(p.id).cls === 1));
-  assert.deepStrictEqual([0, 1, 2].map((t) => S.participants.filter((p) => p.pool === 'kku' && p.name && p.cls === t).length), [4, 10, 12]);
-  console.log('OK 동점 처리 (공동 순위, 경계 동점자는 원래 계급 유지)');
+  assert(ids[0].every((p) => f(p.id).rank === 2 && f(p.id).tied));
+  assert.deepStrictEqual([0, 1, 2].map((t) => S.participants.filter((p) => p.pool === 'kku' && p.name && p.cls === t).length), [3, 10, 13], '정원 유지');
+  const byAge = (x, y) => SP.dateKey(x.birth) - SP.dateKey(y.birth) || SP.dateKey(x.enroll) - SP.dateKey(y.enroll) || x.n - y.n || x.id.localeCompare(y.id);
+  const s0 = ids[0].slice().sort(byAge), s1 = ids[1].slice().sort(byAge);
+  assert(s0.slice(0, 2).every((p) => f(p.id).cls === 0) && f(s0[2].id).cls === 1, '네모 출신 중 가장 늦은 사람이 세모로');
+  assert(s1.slice(0, 9).every((p) => f(p.id).cls === 1) && f(s1[9].id).cls === 2, '세모 출신 중 가장 늦은 사람이 동그라미로');
+  console.log('OK 동점 처리 (공동 순위, 정원 유지, 기존 계급 -> 생년월일 -> 기수)');
 
   // 참가자가 직접 입력하는 보너스 칩 (진행자가 입력한 값이 있으면 그 값이 우선, 미제출이면 이전 값 유지)
   await A({ type: 'open' });

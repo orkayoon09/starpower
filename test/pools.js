@@ -42,7 +42,27 @@ async function runPools(base, { password = 'testpw' }) {
   await submitAll('find', varied);
   assert.strictEqual(Object.keys((await St('find')).submissions).length, 12);
   assert.strictEqual(Object.keys((await St('kku')).submissions).length, 0, '꾸 화면에는 찾여 제출이 안 보임');
+  // 감옥: 수감자는 칩을 낼 수 없고(이미 낸 칩은 취소), 본인 화면에 표시되며, 순위 계산에는 그대로 포함된다
+  const jp = people.find[0];
+  await A('find', { type: 'setJailed', pid: jp.id, jailed: true });
+  assert.strictEqual(Object.keys((await St('find')).submissions).length, 11, '수감되면 이번 집계에 낸 칩은 취소');
+  assert.strictEqual((await call('/api/submit', { chips: ['red'] }, tokens[jp.id])).status, 409, '수감 중에는 제출 불가');
+  assert.strictEqual((await call('/api/me', null, tokens[jp.id])).body.me.jailed, true, '본인 화면에 수감 표시');
+  assert(/다른 반/.test(await E('kku', { type: 'setJailed', pid: jp.id, jailed: true })), '남의 반 참가자는 수감 불가');
+  assert((await St('find')).participants.find((p) => p.id === jp.id).jailed === true);
+  assert(!(await St('kku')).participants.some((p) => p.jailed));
   await A('find', { type: 'close' });
+  assert((await St('find')).participants.find((p) => p.id === jp.id).rank !== null, '수감자도 순위는 매겨짐');
+  await A('find', { type: 'setJailed', pid: jp.id, jailed: false });
+  assert.strictEqual((await call('/api/me', null, tokens[jp.id])).body.me.jailed, false);
+  await A('find', { type: 'setJailed', pid: people.find[1].id, jailed: true });
+  await A('kku', { type: 'setJailed', pid: people.kku[0].id, jailed: true });
+  await A('find', { type: 'releaseAll' });
+  assert(!(await St('find')).participants.some((p) => p.jailed), '전체 석방');
+  assert((await St('kku')).participants.find((p) => p.id === people.kku[0].id).jailed, '전체 석방은 내 반만');
+  await A('kku', { type: 'releaseAll' });
+  assert(!(await St('kku')).participants.some((p) => p.jailed));
+  console.log('OK 감옥: 제출 차단, 본인 표시, 내 반만 수감/석방, 전체 석방');
   let f = await St('find'), k = await St('kku');
   assert(f.round === 1 && f.history.length === 1 && k.round === 0 && k.history.length === 0, '찾여만 1라운드');
   assert(k.participants.every((p) => p.rank === null), '꾸는반 순위는 그대로');

@@ -1,6 +1,6 @@
 {
   "name": "starpower-score",
-  "version": "2.0.0",
+  "version": "2.2.0",
   "description": "스타파워 점수 집계 웹앱",
   "main": "server.js",
   "scripts": {

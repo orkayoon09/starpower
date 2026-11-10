@@ -74,5 +74,11 @@
     return prevRank - rank;
   }
 
-  return { rankDelta, DEFAULT_COLORS, DEFAULT_TABLE, calcScore, dateKey, minPossibleScore };
+  // 감옥 아이콘 (창살). 글꼴에 따라 이모지가 다르게 보이지 않도록 SVG 로 그린다.
+  function jailIcon(size) {
+    const z = size || 16;
+    return `<svg class="jail" width="${z}" height="${z}" viewBox="0 0 16 16" role="img" aria-label="수감 중" focusable="false" style="vertical-align:-3px;flex:none"><title>수감 중</title><rect x="1.5" y="1.5" width="13" height="13" rx="2.5" fill="#3b3f4a" stroke="#ffffff" stroke-width="1"/><path d="M5 3v10M8 3v10M11 3v10" stroke="#e8eaf0" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+  }
+
+  return { rankDelta, jailIcon, DEFAULT_COLORS, DEFAULT_TABLE, calcScore, dateKey, minPossibleScore };
 });

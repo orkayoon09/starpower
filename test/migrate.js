@@ -42,7 +42,14 @@ console.log('OK 예전 데이터 이전: 빈 아이디 정리, 정원 새 기본
   assert.strictEqual(old.participants[0].rank, null, '순위는 초기화');
   assert.strictEqual(old.participants[0].name, '김하늘', '명단은 유지');
   assert.strictEqual(og.adminView({}, 'find').round, 0);
-  console.log('OK 1.x 데이터 이전: 반별 진행 구조로 바뀌고 명단은 유지');
+  // 예전 2자리 PIN 은 그대로 로그인되고, 다른 칸을 고칠 때도 막히지 않는다. 새 PIN 은 4자리만 허용한다.
+  assert(og.findLogin('김하늘', '11'), '예전 2자리 PIN 로그인 유지');
+  og.adminAction({ type: 'updateParticipant', pid: old.participants[0].id, fields: { birth: '2007-02-02' } }, 'find');
+  assert.strictEqual(old.participants[0].pin, '11');
+  assert.throws(() => og.adminAction({ type: 'updateParticipant', pid: old.participants[0].id, fields: { pin: '12' } }, 'find'), /4자리/);
+  og.adminAction({ type: 'updateParticipant', pid: old.participants[0].id, fields: { pin: '1234' } }, 'find');
+  assert(og.findLogin('김하늘', '1234') && !og.findLogin('김하늘', '11'));
+  console.log('OK 1.x 데이터 이전: 반별 진행 구조로 바뀌고 명단은 유지, 예전 2자리 PIN 호환');
 }
 
 // 점수표에서 나올 수 있는 가장 낮은 점수 (결과 화면 히스토그램에서 낮은 구간을 합치는 기준)
