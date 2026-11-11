@@ -1,0 +1,990 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>스타파워 진행자</title>
+<link rel="stylesheet" href="/style.css?v=2.2.2">
+<style>
+  .page { max-width: 1240px; margin: 0 auto; padding: 14px 18px 60px; }
+  header.bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  header.bar h1 { font-size: 20px; margin: 0; }
+  header.bar .sp { flex: 1; }
+  nav.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 14px; overflow-x: auto; }
+  nav.tabs button { border: none; background: none; padding: 10px 16px; font-weight: 700; color: var(--ink-2); border-bottom: 3px solid transparent; white-space: nowrap; }
+  nav.tabs button[aria-selected=true] { color: var(--accent); border-color: var(--accent); }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; }
+  h2 { font-size: 17px; margin: 0 0 10px; }
+  h3 { font-size: 15px; margin: 14px 0 6px; }
+  .bar-wrap { height: 12px; border-radius: 99px; background: #e9e7e1; overflow: hidden; }
+  .bar-fill { height: 100%; background: var(--ok); transition: width .3s; }
+  table.t { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.t th { text-align: left; font-size: 12px; color: var(--ink-2); padding: 6px 8px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: #fff; }
+  table.t td { padding: 6px 8px; border-bottom: 1px solid #f0eee9; vertical-align: middle; }
+  table.t tr.miss td { background: #fffaf0; }
+  table.t input[type=text], table.t input[type=number] { padding: 5px 8px; border-radius: 8px; }
+  .scroll { max-height: 62vh; overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
+  .stepper { display: inline-flex; align-items: center; gap: 4px; }
+  .stepper b { min-width: 1.6em; text-align: center; font-variant-numeric: tabular-nums; }
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 99px; color: #fff; font-weight: 700; font-size: 12px; white-space: nowrap; }
+  .num { font-variant-numeric: tabular-nums; }
+  .kpis { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .kpi { flex: 1; min-width: 110px; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
+  .kpi .v { font-size: 28px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .kpi .k { font-size: 12px; color: var(--ink-2); }
+  .cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  @media (max-width: 820px) { .cols { grid-template-columns: 1fr; } }
+  .col h3 { margin: 0 0 8px; display: flex; align-items: center; gap: 8px; }
+  .member { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 9px; margin-bottom: 5px; font-size: 14px; background: #fff; }
+  .member .sc { margin-left: auto; font-weight: 700; }
+  .mv { font-size: 12px; font-weight: 700; }
+  .rk { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .rk.up { color: var(--ok); } .rk.down { color: var(--warn); } .rk.same { color: var(--muted, #888); font-weight: 500; }
+  .mv.up { color: var(--ok); } .mv.down { color: var(--warn); }
+  .hist { display: flex; align-items: flex-end; gap: 6px; overflow-x: auto; padding: 6px 2px 4px; min-height: 160px; }
+  .bin { flex: 1 0 74px; display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; }
+  .stack { display: flex; flex-direction: column-reverse; gap: 3px; }
+  .tag { color: #fff; border-radius: 7px; padding: 2px 6px; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+  .bin .lbl { text-align: center; font-size: 12px; color: var(--ink-2); border-top: 2px solid var(--ink); margin-top: 4px; padding-top: 3px; }
+  .bin .cnt { text-align: center; font-size: 12px; font-weight: 700; }
+  .legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 13px; }
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 16px; }
+  .modal { background: #fff; border-radius: 16px; padding: 18px; width: min(460px, 100%); max-height: 90vh; overflow: auto; }
+  .palette { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin: 10px 0; }
+  .pal { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 2px; background: #fff; border: 1px solid var(--line); border-radius: 12px; font-weight: 700; font-size: 13px; }
+  .flash { position: fixed; left: 50%; top: 14px; transform: translateX(-50%); background: #1d1d1f; color: #fff; padding: 10px 16px; border-radius: 10px; z-index: 80; max-width: 90vw; }
+  .flash.err { background: var(--bad); }
+  .tablewrap { overflow-x: auto; }
+  table.score td input { width: 64px; text-align: center; }
+  .qr svg { width: 180px; height: 180px; }
+  .login { max-width: 380px; margin: 14vh auto 0; }
+  .field { margin: 10px 0; } .field label { display: block; font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+  .hint { font-size: 13px; color: var(--ink-2); margin: 6px 0 0; }
+  /* 모니터 모드 */
+  body.board header.bar, body.board nav.tabs, body.board .noboard { display: none; }
+  body.board .page { max-width: none; padding: 18px 28px; }
+  body.board .member { font-size: 18px; } body.board .tag { font-size: 16px; } body.board .kpi .v { font-size: 40px; }
+  /* 보기 전용(통합 후 꾸는반 진행자 화면): 바꾸는 버튼을 모두 숨긴다 */
+  body.ro [data-act]:not([data-act=board]):not([data-act=finalPrint]):not([data-act=finalCsv]):not([data-act=logout]):not([data-act=toFinal]):not([data-act=csv]):not([data-act=togglePin]):not([data-act=subFilter]):not([data-act=alertDismiss]):not([data-act=alertDismissAll]):not([data-act=alertRestore]) { display: none !important; }
+  /* 최종 결과 */
+  .fhead { text-align: center; margin: 8px 0 18px; }
+  .fhead h2 { font-size: 30px; margin: 0; letter-spacing: -.5px; }
+  .fhead .sub { color: var(--ink-2); margin-top: 4px; }
+  .hl { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 8px 18px; margin: 0; padding: 0; list-style: none; }
+  .hl li { display: flex; flex-direction: column; font-size: 14px; }
+  .hl li span.k { font-size: 12px; color: var(--ink-2); }
+  table.jt th, table.jt td { white-space: nowrap; }
+  table.jt td.c { text-align: center; }
+  .jc { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 24px; border-radius: 7px; color: #fff; font-weight: 700; font-size: 13px; padding: 0 4px; }
+  .rsum { display: flex; gap: 8px; flex-wrap: wrap; }
+  .rsum div { border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; font-size: 13px; background: #fff; }
+  body.board .fhead h2 { font-size: 48px; } body.board .hl li { font-size: 20px; }
+  @media print {
+    header.bar, nav.tabs, .noprint { display: none !important; }
+    .page { padding: 0; max-width: none; }
+    .card, .member, .kpi { break-inside: avoid; }
+    .badge, .jc, .tag, .card { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .scroll { max-height: none !important; overflow: visible !important; }
+  }
+</style>
+</head>
+<body>
+<div class="page" id="root"></div>
+<script src="/shared.js?v=2.2.2"></script>
+<script src="/vendor/qrcode.js?v=2.2.2"></script>
+<script>
+(function () {
+  'use strict';
+  const root = document.getElementById('root');
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+    del(k) { try { localStorage.removeItem(k); } catch (e) {} },
+  };
+
+  let token = store.get('sp-admin');
+  let S = null;                       // 서버 상태
+  let tab = store.get('sp-tab') || 'tally';
+  const ui = { showPin: false, filter: '', sub: 'all', alertCfg: false, seenAlerts: new Set(), dismissed: new Set(), resultRound: null, resultGroup: 'all', binW: 4, qrIdx: 0, loginErr: '' };
+  let pending = false;
+  try { JSON.parse(store.get('sp-dismissed') || '[]').forEach((k) => ui.dismissed.add(k)); } catch (e) {}
+
+  async function api(path, opts) {
+    const res = await fetch(path, Object.assign({ headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (token || '') } }, opts));
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) { const e = new Error(body.error || '오류가 발생했어요'); e.status = res.status; throw e; }
+    return body;
+  }
+  let flashTimer;
+  function flash(msg, err) {
+    document.querySelectorAll('.flash').forEach((n) => n.remove());
+    const n = document.createElement('div');
+    n.className = 'flash' + (err ? ' err' : ''); n.textContent = msg; n.setAttribute('role', 'status');
+    document.body.appendChild(n);
+    clearTimeout(flashTimer); flashTimer = setTimeout(() => n.remove(), err ? 5000 : 2200);
+  }
+  let lastJson = '';
+  async function act(action, okMsg) {
+    if (S && S.readOnly) { flash('두 반이 합쳐진 뒤에는 찾는·여는반 진행자 화면에서 진행해요. 이 화면은 보기 전용이에요', true); return false; }
+    try {
+      S = await api('/api/admin/action', { method: 'POST', body: JSON.stringify(action) });
+      lastJson = JSON.stringify(S);
+      notifyAlerts();
+      if (okMsg) flash(okMsg);
+      try { render(); } catch (e) { console.error(e); }
+      return true;
+    } catch (e) {
+      if (e.status === 401) return logout();
+      flash(e.message, true);
+      return false;
+    }
+  }
+  function logout() { token = null; S = null; lastJson = ''; store.del('sp-admin'); render(); return false; }
+  async function fetchState() {
+    if (!token) return;
+    try {
+      const next = await api('/api/admin/state');
+      ensureSse(next.push);
+      const j = JSON.stringify(next);
+      if (j === lastJson) return; // 바뀐 게 없으면 다시 그리지 않음 (스크롤·입력 보존)
+      lastJson = j; S = next; notifyAlerts(); softRender();
+    } catch (e) { if (e.status === 401) logout(); }
+  }
+  // 새 이상 징후가 생기면 화면 위에 알림을 한 번 띄운다
+  const alertKey = (a) => `${S.viewGroup}:${S.round}:${a.key}`;
+  const liveAlerts = () => ((S && S.alerts) || []).filter((a) => !ui.dismissed.has(alertKey(a)));
+  function notifyAlerts() {
+    if (!S || !S.open) { ui.seenAlerts.clear(); return; }
+    const fresh = liveAlerts().filter((a) => !ui.seenAlerts.has(alertKey(a)));
+    fresh.forEach((a) => ui.seenAlerts.add(alertKey(a)));
+    if (fresh.length) flash(`이상 징후 ${fresh.length}건: ${fresh[0].name} ${fresh[0].text}`.slice(0, 90) + (fresh.length > 1 ? ` 외 ${fresh.length - 1}건` : ''), true);
+  }
+  function softRender() {
+    const ae = document.activeElement;
+    if (ae && ae !== document.body && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && root.contains(ae)) { pending = true; return; }
+    render();
+  }
+  root.addEventListener('focusout', () => { if (pending) setTimeout(() => { const ae = document.activeElement; if (!ae || !/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) { pending = false; render(); } }, 50); });
+
+  // ------------------------------------------------------------ 공통 도우미
+  const tiers = () => S.settings.tiers;
+  const colors = () => S.settings.colors;
+  const myPools = () => (S.settings.merged ? Object.keys(S.settings.pools) : [S.scope]); // 이 진행자가 다루는 반
+  const histLabel = (h) => (S.settings.merged && h.group !== 'all' && S.settings.pools[h.group] ? `${S.settings.pools[h.group].name} 라운드 ${h.round}` : `라운드 ${h.round}`);
+  const histShort = (h) => (S.settings.merged && h.group !== 'all' && S.settings.pools[h.group] ? `${S.settings.pools[h.group].short} R${h.round}` : `R${h.round}`);
+  const colorName = (k) => (colors().find((c) => c.key === k) || {}).name || k;
+  const APP_VERSION = '2.2.2'; // 서버(lib/version.js)와 같아야 한다
+  // 칩을 정확히 n개 가졌을 때 나올 수 있는 가장 낮은 점수. shared.js 가 예전 파일이어도 화면이 깨지지 않도록 여기에도 둔다.
+  const minPossible = SP.minPossibleScore || ((table, n) => {
+    let dp = Array(n + 1).fill(Infinity); dp[0] = 0;
+    for (const k of Object.keys(table)) {
+      const next = Array(n + 1).fill(Infinity);
+      for (let u = 0; u <= n; u++) { if (dp[u] === Infinity) continue; for (let c = 0; u + c <= n; c++) { const cost = c === 0 ? 0 : Number(table[k][c - 1]); if (Number.isFinite(cost)) next[u + c] = Math.min(next[u + c], dp[u] + cost); } }
+      dp = next;
+    }
+    return dp[n] === Infinity ? 0 : dp[n];
+  });
+  // 순위 변화 표시 (▲3 = 3계단 상승). 직전 순위가 없으면(첫 집계, 새로 온 사람) 표시하지 않는다.
+  const rankDeltaOf = (prev, now) => (prev == null || now == null ? null : prev - now);
+  const rankChip = (prev, now) => {
+    const d = rankDeltaOf(prev, now);
+    if (d === null) return '';
+    return d > 0 ? `<span class="rk up" title="${prev}위 → ${now}위">▲${d}</span>` : d < 0 ? `<span class="rk down" title="${prev}위 → ${now}위">▼${-d}</span>` : `<span class="rk same" title="${prev}위 그대로">–</span>`;
+  };
+  const rankText = (prev, now) => { const d = rankDeltaOf(prev, now); return d === null ? '' : d > 0 ? ` · ${prev}위→${now}위 (▲${d})` : d < 0 ? ` · ${prev}위→${now}위 (▼${-d})` : ` · 순위 그대로`; };
+  const P = (id) => S.participants.find((p) => p.id === id);
+  const active = () => S.participants.filter((p) => p.name && p.present !== false);
+  const groupOf = (p) => (S.settings.merged ? 'all' : p.pool);
+  const groupName = (g) => (g === 'all' ? '전체' : S.settings.pools[g].name);
+  const chip = (k, cls) => `<span class="chip ${esc(k)} ${cls || ''}"></span>`;
+  const jailMark = (pid, size) => { const q = P(pid); return q && q.jailed ? ' ' + SP.jailIcon(size || 15) : ''; };
+  const badge = (t) => { const x = tiers()[t]; return `<span class="badge" style="background:${esc(x.color)}">${esc(x.symbol)} ${esc(x.name)}</span>`; };
+  const calc = (chips) => SP.calcScore(chips, S.settings.scoreTable).total;
+  const num = (v) => Number(v) || 0;
+
+  // ------------------------------------------------------------ 렌더
+  function safeView() {
+    try { return { final: finalView, tally: tallyView, results: resultsView, people: peopleView, settings: settingsView }[tab](); }
+    catch (e) {
+      console.error(e);
+      return `<div class="card"><h2>이 탭을 그리는 중 문제가 생겼어요</h2><p class="muted">${esc(e.message)}</p><p class="small">다른 탭은 정상으로 쓸 수 있어요. 파일을 일부만 올렸다면 모든 파일을 다시 올려보세요.</p></div>`;
+    }
+  }
+
+  function render() {
+    pending = false;
+    if (!token || !S) return renderLogin();
+    const open = S.open;
+    if (tab === 'final' && !S.ended) tab = 'tally';
+    if (S.readOnly && (tab === 'people' || tab === 'settings')) tab = 'tally';
+    document.body.classList.toggle('ro', !!S.readOnly);
+    document.title = '스타파워 진행자';
+    const scrolls = [...root.querySelectorAll('.scroll')].map((e) => e.scrollTop);
+    const winY = window.scrollY;
+    root.innerHTML = `
+      <header class="bar">
+        <h1>스타파워 진행자</h1>
+        <span class="pill ${open ? 'live' : ''}">라운드 ${S.round}${S.ended ? ' · 종료' : open ? ' · 집계 중' : ' · 대기'}</span>
+        <span class="muted small" style="font-weight:700">${S.settings.merged ? (S.readOnly ? '통합됨 · 보기 전용' : '통합 진행 중') : esc(S.settings.pools[S.scope].name) + ' 진행자'}</span>
+        <span class="sp"></span>
+        <button class="btn sm" data-act="logout">로그아웃</button>
+      </header>
+      <nav class="tabs" role="tablist">
+        ${[...(S.ended ? [['final', '최종 결과']] : []), ['tally', '집계' + (liveAlerts().length ? ` ·⚠${liveAlerts().length}` : '')], ['results', '결과'], ...(S.readOnly ? [] : [['people', '참가자·출석'], ['settings', '설정']])].map(([k, l]) => `<button role="tab" aria-selected="${tab === k}" data-tab="${k}">${l}</button>`).join('')}
+      </nav>
+      ${S.version !== APP_VERSION ? `<div class="card" style="border-color:var(--bad);margin:10px 0"><b style="color:var(--bad)">파일 버전이 서로 달라요</b><p class="small" style="margin:6px 0 0">화면 파일은 ${esc(APP_VERSION)}, 서버 파일은 ${esc(S.version || '이전 버전')}이에요. GitHub에 파일을 일부만 올렸을 때 생겨요. <b>lib, public, netlify 폴더의 모든 파일</b>을 올린 뒤 배포가 끝나면 이 화면을 새로고침(Cmd+Shift+R)하세요.</p></div>` : ''}
+      ${S.readOnly ? `<div class="card" style="margin:10px 0"><b>보기 전용 화면이에요.</b> <span class="small">두 반이 하나로 합쳐졌어요. 이제 집계는 찾는·여는반 진행자 화면에서 진행하고, 이 화면에서는 결과를 볼 수 있어요.</span></div>` : ''}
+      <main id="main">${safeView()}</main>`;
+    root.querySelectorAll('.scroll').forEach((e, i) => { if (scrolls[i]) e.scrollTop = scrolls[i]; });
+    if (winY) window.scrollTo(0, winY);
+    if (tab === 'settings') drawQr();
+  }
+
+  function renderLogin() {
+    document.body.classList.remove('ro');
+    root.innerHTML = `<div class="card login">
+      <h1 style="margin:0 0 4px">스타파워 진행자</h1>
+      <p class="muted">내가 맡은 반을 고르고 비밀번호를 입력하세요. 두 진행자는 같은 비밀번호를 쓰고, 고른 반의 집계만 다룰 수 있어요.</p>
+      <form id="lf"><div class="field"><label>맡은 반</label>
+        <div class="row" role="radiogroup" aria-label="맡은 반">
+          <label style="font-weight:600"><input type="radio" name="scope" value="find" ${store.get('sp-scope') !== 'kku' ? 'checked' : ''}> 찾는·여는반 진행자</label>
+          <label style="font-weight:600"><input type="radio" name="scope" value="kku" ${store.get('sp-scope') === 'kku' ? 'checked' : ''}> 꾸는반 진행자</label>
+        </div></div>
+        <div class="field"><label for="pw">비밀번호</label><input id="pw" type="password" autocomplete="current-password" required></div>
+      <div style="color:var(--bad);min-height:1.4em" role="alert">${esc(ui.loginErr)}</div>
+      <button class="btn primary big">들어가기</button></form></div>`;
+    document.getElementById('lf').onsubmit = async (ev) => {
+      ev.preventDefault();
+      try {
+        const r = await api('/api/admin/login', { method: 'POST', body: JSON.stringify({ password: document.getElementById('pw').value, scope: (document.querySelector('input[name=scope]:checked') || {}).value || 'find' }) });
+        token = r.token; store.set('sp-admin', token); store.set('sp-scope', r.scope); ui.loginErr = '';
+        S = await api('/api/admin/state'); lastJson = JSON.stringify(S); render();
+      } catch (e) { ui.loginErr = e.message; renderLogin(); }
+    };
+  }
+
+  // ------------------------------------------------------------ 집계 탭
+  function sortedActive() {
+    return active().slice().sort((a, b) => (a.pool === b.pool ? 0 : a.pool < b.pool ? -1 : 1) || a.cls - b.cls || a.n - b.n);
+  }
+
+  function tallyView() {
+    const act = active();
+    const total = act.length;
+    const subs = S.submissions;
+    const done = act.filter((p) => subs[p.id]).length;
+    const missing = act.filter((p) => !subs[p.id]);
+    const hasHistory = S.history.length > 0;
+    const noContent = !Object.keys(subs).length && !Object.keys(S.bonus).length;
+
+    let controls;
+    if (S.ended) {
+      controls = `
+        <button class="btn primary" data-act="toFinal" style="font-size:17px;padding:12px 18px">최종 결과 보기</button>
+        <button class="btn" data-act="reopenGame">종료 취소</button>`;
+    } else if (S.open) {
+      controls = `
+        <button class="btn primary" data-act="close" style="font-size:17px;padding:12px 18px">집계 마감하고 계급 이동</button>
+        ${noContent ? '<button class="btn" data-act="cancelOpen">열기 취소</button>' : ''}`;
+    } else {
+      controls = `
+        <button class="btn primary" data-act="open" style="font-size:17px;padding:12px 18px" ${total ? '' : 'disabled'}>라운드 ${S.round + 1} 집계 시작</button>
+        ${hasHistory ? '<button class="btn" data-act="undo">마지막 집계 되돌리기</button>' : ''}
+        ${hasHistory ? '<button class="btn danger" data-act="endGame">게임 종료</button>' : ''}`;
+    }
+
+    let body = `
+      <div class="card">
+        <div class="row" style="justify-content:space-between">
+          <div>
+            <h2 style="margin:0">${S.ended ? '게임이 종료됐어요' : S.open ? `라운드 ${S.round} 점수 입력 받는 중` : '집계 대기 중'}</h2>
+            <p class="hint" style="margin:2px 0 0">${S.ended ? '집계 시작, 명단·계급 수정이 잠겨 있어요. 참가자 화면에는 최종 결과가 나가고 있어요. 이어서 진행하려면 ‘종료 취소’를 누르세요.' : S.open ? '참가자가 칩을 제출하면 아래에 바로 나타나요. 마감하면 순위대로 계급이 자동으로 이동해요.' : (total ? '집계를 시작하면 참가자 화면에 입력창이 열려요.' : '먼저 ‘참가자·출석’ 탭에서 명단을 입력해주세요.')}</p>
+          </div>
+          <div class="row">${controls}</div>
+        </div>
+        ${S.open ? `
+        <div style="margin-top:14px">
+          <div class="row" style="justify-content:space-between"><b>제출 ${done} / ${total}명</b><span class="muted small">${total ? Math.round(done / total * 100) : 0}%</span></div>
+          <div class="bar-wrap" role="progressbar" aria-valuenow="${done}" aria-valuemax="${total}"><div class="bar-fill" style="width:${total ? done / total * 100 : 0}%"></div></div>
+          ${missing.length ? `<p class="hint">미제출: ${missing.map((p) => `<button class="btn sm" data-act="chips" data-pid="${esc(p.id)}" title="대신 입력">${esc(p.name)}${p.jailed ? ' ' + SP.jailIcon(13) : ''}</button>`).join(' ')}</p>` : '<p class="hint" style="color:var(--ok)">모두 제출했어요.</p>'}
+        </div>` : ''}
+      </div>`;
+
+    body += mergeCard();
+    if (S.open) body += alertCard() + bonusCard() + tallyTable();
+    else {
+      if (hasHistory) body += `<div class="card"><p style="margin:0">직전 결과는 <a href="#" data-tab="results">결과 탭</a>에서 볼 수 있어요.</p></div>`;
+      if (!S.ended) body += scoreEditTable();
+    }
+    body += alertConfigCard();
+    return body;
+  }
+
+  // 쉬는시간 뒤 두 반 합치기: 양쪽 진행자가 모두 누르면 찾는·여는반 화면 하나로 통합된다
+  function mergeCard() {
+    const m = S.merge;
+    if (!m) return '';
+    if (m.done) return `<div class="card"><b>두 반이 하나로 합쳐졌어요.</b> <span class="muted small">계급과 점수는 그대로 이어지고, ${S.readOnly ? '진행은 찾는·여는반 진행자 화면에서 해요.' : '지금부터 이 화면에서 전체를 진행해요.'}</span></div>`;
+    const o = m.other;
+    const otherState = o.ready ? '<b style="color:var(--ok)">합치기를 눌러 뒀어요</b>' : o.ended ? '게임 종료 상태' : o.open ? `라운드 ${o.round} 집계 진행 중` : `라운드 ${o.round} 마감 후 대기 중`;
+    const myName = S.settings.pools[S.scope].name;
+    const block = S.open ? '집계를 마감한 뒤에 누를 수 있어요' : S.ended ? '종료를 취소한 뒤에 누를 수 있어요' : '';
+    return `<div class="card"><div class="row" style="justify-content:space-between;align-items:flex-start">
+      <div style="flex:1;min-width:260px"><h2 style="margin:0">두 반 합치기</h2>
+        <p class="hint" style="margin:2px 0 6px">쉬는시간 뒤에 <b>두 진행자가 모두 ‘합치기’를 누르면</b> 찾는·여는반 진행자 화면 하나로 통합돼요. 계급과 점수는 그대로 이어지고 라운드 번호도 이어져요. 누른 뒤에도 다시 눌러 취소할 수 있어요.</p>
+        <div class="small">${esc(myName)} (이 화면): ${m.mine ? '<b style="color:var(--ok)">합치기를 눌러 뒀어요 · 상대를 기다리는 중</b>' : '아직 누르지 않았어요'}<br>${esc(o.name)}: ${otherState}</div></div>
+      <div class="row" style="flex-direction:column;align-items:flex-end;gap:4px">
+        ${m.mine ? '<button class="btn" data-act="mergeReady" data-ready="0">합치기 취소</button>' : `<button class="btn primary" data-act="mergeReady" data-ready="1" ${block ? 'disabled' : ''}>합치기</button>`}
+        ${!m.mine && block ? `<span class="muted small">${block}</span>` : ''}</div></div></div>`;
+  }
+
+  function bonusCard() {
+    // 보너스 칩은 거래·양도가 되고 칩을 가진 채 계급이 바뀔 수 있어서, 정원 없이 현재 입력된 보유량만 참고용으로 보여준다.
+    const groups = S.settings.merged ? ['all'] : Object.keys(S.settings.pools);
+    const rows = groups.map((g) => {
+      const members = active().filter((p) => groupOf(p) === g);
+      const sum = (list) => list.reduce((a, p) => a + num(S.bonus[p.id]), 0);
+      const cells = tiers().map((t, ti) => `<td>${badge(ti)}</td><td class="num">${sum(members.filter((p) => p.cls === ti))}개</td>`).join('');
+      const holders = members.filter((p) => num(S.bonus[p.id]) > 0).length;
+      return `<tr><th style="white-space:nowrap">${esc(groupName(g))}</th>${cells}<td class="muted small">합계</td><td class="num"><b>${sum(members)}개</b> <span class="muted small">(${holders}명 보유)</span></td></tr>`;
+    }).join('');
+    const all = active().reduce((a, p) => a + num(S.bonus[p.id]), 0);
+    return `<div class="card"><h2>보너스 칩 현황 <span class="muted small" style="font-weight:400">칩 1개 = ${S.settings.bonusValue}점 · 지금까지 입력된 보유량이에요(참고용). 참가자가 직접 입력하고, 아래 표의 ‘보너스’ 칸에서 진행자가 고칠 수도 있어요</span></h2>
+      <div class="tablewrap"><table class="t">${rows}</table></div>
+      <p class="hint" style="margin-bottom:0">전체 ${all}개 · 계급 표시는 지금 계급 기준이라, 칩을 가진 채 계급이 바뀐 사람은 현재 계급에 합산돼요.</p></div>`;
+  }
+
+  // 이상 징후(부정행위 의심) 알림. 집계 중에 제출된 내용을 직전 마감 상태와 비교해서 찾는다.
+  const ALERT_LABEL = { highNoBonus: '높은 점수', bonusTotal: '보너스 칩 총량', scoreJump: '점수 급변' };
+  function alertCard() {
+    const all = (S.alerts || []);
+    const live = liveAlerts();
+    const hidden = all.length - live.length;
+    if (!live.length) return hidden ? `<div class="card noprint"><span class="small muted">확인한 이상 징후 ${hidden}건이 숨겨져 있어요. <button class="btn sm" data-act="alertRestore">다시 보기</button></span></div>` : '';
+    return `<div class="card" role="alert" style="border:2px solid var(--bad)">
+      <div class="row" style="justify-content:space-between"><h2 style="margin:0;color:var(--bad)">이상 징후 ${live.length}건 <span class="muted small" style="font-weight:400">부정행위가 의심되는 제출이에요. 칩을 직접 확인해주세요</span></h2>
+        <button class="btn sm" data-act="alertDismissAll">모두 확인함</button></div>
+      <div style="margin-top:8px">${live.map((a) => `<div class="member" style="align-items:flex-start;flex-wrap:wrap">
+        <span class="badge" style="background:var(--bad)">${esc(ALERT_LABEL[a.type] || '알림')}</span>
+        <b>${esc(a.name)}</b><span style="flex:1;min-width:220px">${esc(a.text)}${a.detail ? `<br><span class="muted small">${esc(a.detail)}</span>` : ''}</span>
+        ${a.pid ? `<button class="btn sm" data-act="chips" data-pid="${esc(a.pid)}">칩 확인/수정</button>` : ''}
+        <button class="btn sm" data-act="alertDismiss" data-k="${esc(alertKey(a))}">확인함</button></div>`).join('')}</div>
+      ${hidden ? `<p class="hint" style="margin-bottom:0">확인한 ${hidden}건은 숨겨져 있어요. <button class="btn sm" data-act="alertRestore">다시 보기</button></p>` : ''}</div>`;
+  }
+
+  function alertConfigCard() {
+    const a = S.settings.alerts;
+    if (!a) return '';
+    const sumry = [a.highNoBonus.on ? `높은 점수 ${a.highNoBonus.score}점 초과` : null, a.bonusTotal.on ? '보너스 칩 총량 변화' : null, a.scoreJump.on ? `점수 ${a.scoreJump.delta}점 이상 변동` : null].filter(Boolean).join(' · ') || '모두 꺼짐';
+    const top = tiers()[0].name;
+    return `<div class="card noprint"><div class="row" style="justify-content:space-between">
+      <div><b>이상 징후 알림 설정</b> <span class="muted small">켜진 조건: ${esc(sumry)}</span></div>
+      <button class="btn sm" data-act="alertCfg">${ui.alertCfg ? '접기' : '설정 열기'}</button></div>
+      ${ui.alertCfg ? `<div style="margin-top:10px;display:grid;gap:10px">
+        <label class="small" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input type="checkbox" id="alHnOn" ${a.highNoBonus.on ? 'checked' : ''}> <b>높은 점수</b>: ${esc(top)}이 아닌 계급이 보너스 칩 없이 칩 점수가 <input type="number" min="1" id="alHnScore" value="${a.highNoBonus.score}" style="width:70px;display:inline-block">점을 넘음</label>
+        <label class="small" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input type="checkbox" id="alBtOn" ${a.bonusTotal.on ? 'checked' : ''}> <b>보너스 칩 총량</b>: 보너스 칩이 처음 지급된 라운드 이후, 반 전체 보너스 칩 합계가 직전 라운드와 달라짐</label>
+        <label class="small" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input type="checkbox" id="alSjOn" ${a.scoreJump.on ? 'checked' : ''}> <b>점수 급변</b>: 첫 라운드와 보너스 칩 지급 라운드를 제외하고, 점수가 직전보다 <input type="number" min="1" id="alSjDelta" value="${a.scoreJump.delta}" style="width:70px;display:inline-block">점 이상 오르내림</label>
+        <div><button class="btn primary" data-act="alertSave">저장</button></div></div>` : ''}</div>`;
+  }
+
+  // 보기 전환 버튼(전체 / 제출자만 / 미제출만 / 구속자만) 과 검색 칸.
+  // 검색 칸은 다시 그리지 않는다: 한글 입력 중(조합 중)에 칸이 새로 그려지면 입력이 끊겨 ㅇㅏ 처럼 풀어져 입력되기 때문.
+  // 글자를 칠 때는 표 안쪽(#tblWrap)만 바꾼다.
+  const jailedList = () => active().filter((p) => p.jailed);
+  function tableToolbar(items) {
+    const nJ = jailedList().length;
+    return `<span class="seg" role="group" aria-label="보기">${items.map(([k, l, n]) => `<button class="btn sm ${ui.sub === k ? 'primary' : ''}" data-act="subFilter" data-v="${k}" aria-pressed="${ui.sub === k}">${l} ${n}</button>`).join(' ')}</span>
+        ${nJ ? `<button class="btn sm" data-act="releaseAll">전체 석방 (${nJ}명)</button>` : ''}
+        <input type="search" id="filter" placeholder="이름·아이디 검색" value="${esc(ui.filter)}" style="width:200px">`;
+  }
+  const matchFilter = (p) => { const f = ui.filter.trim().toLowerCase(); return !f || p.name.toLowerCase().includes(f) || (S.labels[p.id] || '').toLowerCase().includes(f); };
+  const jailBtn = (p) => `<button class="btn sm ${p.jailed ? '' : 'danger'}" data-act="jail" data-pid="${esc(p.id)}" data-j="${p.jailed ? 0 : 1}">${p.jailed ? '석방' : '구속'}</button>`;
+
+  // 집계 중이 아닐 때 참가자의 칩·보너스 칩을 고치는 표. 점수만 바뀌고 순위와 계급은 다음 마감 때까지 그대로다.
+  function scoreEditInner() {
+    const mode = ui.sub === 'jail' ? 'jail' : 'all';
+    const list = sortedActive().filter((p) => matchFilter(p) && (mode === 'all' || p.jailed));
+    const rows = list.map((p) => `<tr>
+        <td>${badge(p.cls)}</td><td class="small muted">${esc(S.labels[p.id])}</td>
+        <td><b>${esc(p.name)}</b>${p.jailed ? ' ' + SP.jailIcon(16) : ''}</td>
+        <td>${p.chips.length ? `<span class="chips">${p.chips.map((c) => chip(c, 'sm')).join('')}</span>` : '<span class="muted small">없음</span>'}</td>
+        <td class="num">${p.base}</td><td class="num">${p.bonusN}</td><td class="num"><b>${p.score}</b></td>
+        <td style="white-space:nowrap"><button class="btn sm" data-act="chips" data-pid="${esc(p.id)}">점수 수정</button> ${jailBtn(p)}</td></tr>`).join('');
+    return `<table class="t"><thead><tr><th>계급</th><th>아이디</th><th>이름</th><th>칩</th><th>칩 점수</th><th>보너스 칩</th><th>점수</th><th></th></tr></thead><tbody>${rows || `<tr><td colspan="8" class="muted">${mode === 'jail' ? '구속된 사람이 없어요' : '표시할 참가자가 없어요'}</td></tr>`}</tbody></table>`;
+  }
+  function scoreEditTable() {
+    if (!active().length) return '';
+    if (ui.sub === 'sub' || ui.sub === 'miss') ui.sub = 'all';
+    return `<div class="card">
+      <div class="row" style="margin-bottom:10px"><h2 style="margin:0">참가자 점수</h2><span class="sp" style="flex:1"></span>
+        ${tableToolbar([['all', '전체', active().length], ['jail', '구속자만', jailedList().length]])}</div>
+      <div class="scroll" id="tblWrap">${scoreEditInner()}</div>
+      <p class="hint">칩이나 보너스 칩을 고치면 점수만 바뀌고, <b>순위와 계급은 다음 집계를 마감할 때 반영</b>돼요. 직전 결과 탭의 점수도 같이 고쳐져요. 다음 집계에서 제출하지 않으면 고친 값이 그대로 이어져요. 구속된 사람은 칩을 제출할 수 없어요(순위·계급은 그대로 계산돼요).</p></div>`;
+  }
+
+  function tallyInner() {
+    const list = sortedActive().filter((p) => matchFilter(p) && (ui.sub === 'all' || (ui.sub === 'jail' ? !!p.jailed : (ui.sub === 'sub') === !!S.submissions[p.id])));
+    if (ui.sub === 'sub') list.sort((a, b) => (S.submissions[b.id].ts || 0) - (S.submissions[a.id].ts || 0)); // 제출자만: 최근 제출 순
+    const hm = (t) => (t ? new Date(t).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : '');
+    const rows = list.map((p) => {
+      const sub = S.submissions[p.id];
+      const base = sub ? calc(sub.chips) : null;
+      const bn = num(S.bonus[p.id]);
+      const sum = (sub ? base : p.base) + bn * S.settings.bonusValue;
+      return `<tr class="${sub ? '' : 'miss'}">
+        <td>${badge(p.cls)}</td>
+        <td class="small muted">${esc(S.labels[p.id])}</td>
+        <td><b>${esc(p.name)}</b>${p.jailed ? ' ' + SP.jailIcon(16) : ''}</td>
+        <td>${p.jailed && !sub ? '<span class="muted small">수감 중 · 제출 불가 · 이전 기록 유지</span>' : sub ? `<span class="chips">${sub.chips.map((c) => chip(c, 'sm')).join('')}</span>${sub.by === 'admin' ? ' <span class="muted small">(대신 입력)</span>' : ''}` : '<span class="muted small">미제출 · 이전 기록 유지</span>'}</td>
+        <td class="num">${sub ? base : `<span class="muted">${p.base}</span>`}</td>
+        <td class="small muted num">${sub ? hm(sub.ts) : ''}</td>
+        <td><span class="stepper"><button class="btn sm" data-act="bonus" data-pid="${esc(p.id)}" data-d="-1" aria-label="보너스 칩 줄이기">−</button><b>${bn}</b><button class="btn sm" data-act="bonus" data-pid="${esc(p.id)}" data-d="1" aria-label="보너스 칩 늘리기">+</button></span></td>
+        <td class="num"><b>${sum}</b></td>
+        <td style="white-space:nowrap"><button class="btn sm" data-act="chips" data-pid="${esc(p.id)}">입력/수정</button> ${jailBtn(p)}</td>
+      </tr>`;
+    }).join('');
+    return `<table class="t"><thead><tr><th>계급</th><th>아이디</th><th>이름</th><th>입력한 칩</th><th>칩 점수</th><th>제출 시각</th><th>보너스 칩</th><th>합계</th><th></th></tr></thead><tbody>${rows || `<tr><td colspan="9" class="muted">${ui.sub === 'jail' ? '구속된 사람이 없어요' : '표시할 참가자가 없어요'}</td></tr>`}</tbody></table>`;
+  }
+  function tallyTable() {
+    const nSub = active().filter((p) => S.submissions[p.id]).length;
+    return `<div class="card">
+      <div class="row" style="margin-bottom:10px"><h2 style="margin:0">제출 현황</h2><span class="sp" style="flex:1"></span>
+        ${tableToolbar([['all', '전체', active().length], ['sub', '제출자만', nSub], ['miss', '미제출만', active().length - nSub], ['jail', '구속자만', jailedList().length]])}</div>
+      <div class="scroll" id="tblWrap">${tallyInner()}</div>
+      <p class="hint">미제출자는 마감하면 직전 칩·점수가 유지돼요. ‘합계’는 칩 점수 + 보너스 칩 점수예요. 구속된 사람은 칩을 제출할 수 없어요.</p></div>`;
+  }
+
+  // ------------------------------------------------------------ 결과 탭
+  function resultsView() {
+    if (!S.history.length) return `<div class="card"><h2>아직 마감된 집계가 없어요</h2><p class="muted" style="margin:0">집계를 마감하면 계급별 명단과 점수 분포가 여기에 나와요.</p></div>`;
+    const hist = S.history;
+    const h = hist.find((x) => x.id === ui.resultRound) || hist[hist.length - 1];
+    ui.resultRound = h.id;
+    const groups = [...new Set(h.results.map((r) => r.group))];
+    if (ui.resultGroup !== 'all' && !groups.includes(ui.resultGroup)) ui.resultGroup = 'all';
+    const rs = h.results.filter((r) => ui.resultGroup === 'all' || r.group === ui.resultGroup);
+
+    const up = rs.filter((r) => r.to < r.from).length;
+    const down = rs.filter((r) => r.to > r.from).length;
+    const stay = rs.length - up - down;
+    const missing = rs.filter((r) => r.missing).length;
+    // 평균 점수와 지난 라운드 대비 변화 (지난 라운드에도 있던 같은 사람들끼리 비교)
+    const avgNow = rs.length ? rs.reduce((a, r) => a + r.score, 0) / rs.length : 0;
+    const beforeH = hist.slice(0, hist.indexOf(h));
+    const prevEntries = (() => {
+      const same = beforeH.filter((x) => x.group === h.group);
+      if (same.length) return [same[same.length - 1]];
+      if (h.group === 'all') return ['find', 'kku'].map((g) => beforeH.filter((x) => x.group === g).pop()).filter(Boolean); // 통합 첫 집계는 통합 직전 두 반 기록과 비교
+      return [];
+    })();
+    const prevScore = new Map(); prevEntries.forEach((e) => e.results.forEach((r) => prevScore.set(r.pid, r.score)));
+    const common = rs.filter((r) => prevScore.has(r.pid));
+    const avgDelta = common.length ? common.reduce((a, r) => a + (r.score - prevScore.get(r.pid)), 0) / common.length : null;
+
+    const ctrl = `
+      <div class="row noboard" style="margin-bottom:12px">
+        <label class="small">라운드 <select id="resRound" style="width:auto">${hist.map((x) => `<option value="${x.id}" ${x.id === h.id ? 'selected' : ''}>${esc(histLabel(x))}</option>`).join('')}</select></label>
+        ${groups.length > 1 ? `<label class="small">반 <select id="resGroup" style="width:auto"><option value="all">전체</option>${groups.map((g) => `<option value="${g}" ${ui.resultGroup === g ? 'selected' : ''}>${esc(groupName(g))}</option>`).join('')}</select></label>` : ''}
+        <label class="small">점수 구간 <select id="binW" style="width:auto">${[1, 2, 3, 4, 5, 8, 10].map((w) => `<option value="${w}" ${ui.binW === w ? 'selected' : ''}>${w}점</option>`).join('')}</select></label>
+        <span style="flex:1"></span>
+        <button class="btn" data-act="board">모니터 화면으로 보기</button>
+      </div>`;
+
+    const isLatest = hist.filter((x) => x.group === h.group).pop() === h; // 감옥은 현재 상태라서 가장 최근 집계 화면에만 표시
+    const kpis = `<div class="kpis">
+      <div class="kpi"><div class="v" style="color:var(--ok)">${up}</div><div class="k">계급이 올라간 사람</div></div>
+      <div class="kpi"><div class="v" style="color:var(--warn)">${down}</div><div class="k">계급이 내려간 사람</div></div>
+      <div class="kpi"><div class="v">${stay}</div><div class="k">그대로</div></div>
+      <div class="kpi"><div class="v">${avgNow.toFixed(1)}<span class="small" style="font-weight:700">점</span>${avgDelta == null ? '' : ` <span class="small" style="font-weight:700;color:var(--${avgDelta > 0 ? 'ok' : avgDelta < 0 ? 'warn' : 'ink-2'})">${avgDelta > 0 ? '▲' : avgDelta < 0 ? '▼' : '＝'} ${Math.abs(avgDelta).toFixed(1)}점</span>`}</div><div class="k">평균 점수</div></div>
+      <div class="kpi"><div class="v">${esc(histLabel(h))}</div><div class="k">${new Date(h.closedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} 마감</div></div></div>`;
+
+    const cols = tiers().map((t, ti) => {
+      const members = rs.filter((r) => r.to === ti).sort((a, b) => (a.group === b.group ? 0 : a.group < b.group ? -1 : 1) || a.rank - b.rank);
+      const multi = new Set(rs.map((r) => r.group)).size > 1; // 두 반이 따로 순위를 매기는 중이면 반 접두어를 붙임
+      return `<div class="col card" style="border-top:5px solid ${esc(t.color)}"><h3>${badge(ti)} <span class="muted" style="font-weight:600">${members.length}명</span></h3>
+        ${members.map((r) => {
+          const p = P(r.pid) || { name: r.name };
+          const mv = r.to < r.from ? `<span class="mv up">▲ ${esc(tiers()[r.from].name)}에서</span>` : r.to > r.from ? `<span class="mv down">▼ ${esc(tiers()[r.from].name)}에서</span>` : '';
+          const rk0 = (r.tied ? '공동 ' : '') + r.rank;
+          const rk = multi && S.settings.pools[r.group] ? `${esc(S.settings.pools[r.group].short)} ${rk0}` : rk0;
+          return `<div class="member"><span class="muted num small" style="min-width:4.6em">${rk}</span><b>${esc(p.name || r.pid)}</b>${isLatest ? jailMark(r.pid) : ''}${rankChip(r.prevRank, r.rank)}${mv}<span class="sc num">${r.score}</span></div>`;
+        }).join('') || '<p class="muted small">없음</p>'}</div>`;
+    }).join('');
+
+    return ctrl + kpis + `<div class="cols">${cols}</div>` + histogram(rs, h);
+  }
+
+  // ------------------------------------------------------------ 최종 결과 탭
+  // 라운드마다 사람별로 어느 계급이었는지 모은다 (history 기준)
+  function journeys() {
+    const out = {};
+    S.history.forEach((h) => h.results.forEach((r) => {
+      const j = out[r.pid] || (out[r.pid] = { start: r.from, firstRank: null, firstRound: null, rounds: {}, moves: 0 });
+      if (j.firstRank == null && r.rank != null) { j.firstRank = r.rank; j.firstRound = h.round; }
+      j.rounds[h.round] = r;
+    }));
+    for (const j of Object.values(out)) {
+      let prev = j.start;
+      for (const h of S.history) { const r = j.rounds[h.round]; if (!r) continue; if (r.to !== prev) j.moves++; prev = r.to; }
+    }
+    return out;
+  }
+  const namesOf = (list, f) => { const t = list.slice(0, 3).map(f).join(', '); return list.length > 3 ? `${t} 외 ${list.length - 3}명` : t; };
+
+  function finalView() {
+    const hist = S.history;
+    const mainHist = hist.filter((h) => h.group === S.viewGroup);
+    const last = mainHist[mainHist.length - 1];
+    const J = journeys();
+    const roundCols = [...new Set(hist.map((h) => h.round))].sort((a, b) => a - b);
+    const rs = last.results;
+    const nameOf = (r) => esc((P(r.pid) || {}).name || r.name || r.pid);
+    const groups = [...new Set(rs.map((r) => r.group))];
+    const multi = groups.length > 1;
+    const rkLabel = (r) => (r.tied ? '공동 ' : '') + r.rank;
+    const when = new Date(S.ended.at).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+    // 통계 요약
+    const rows = rs.map((r) => ({ r, j: J[r.pid] || { moves: 0 } }));
+    const maxMoves = Math.max(0, ...rows.map((x) => x.j.moves));
+    const mostMoves = maxMoves > 0 ? rows.filter((x) => x.j.moves === maxMoves) : [];
+    const stayed = rows.filter((x) => x.j.moves === 0).length;
+    const withClimb = rows.filter((x) => x.j.firstRank != null && x.j.firstRound < last.round).map((x) => ({ ...x, d: x.j.firstRank - x.r.rank }));
+    const bestUp = Math.max(0, ...withClimb.map((x) => x.d)), bestDown = Math.min(0, ...withClimb.map((x) => x.d));
+    const ups = bestUp > 0 ? withClimb.filter((x) => x.d === bestUp) : [], downs = bestDown < 0 ? withClimb.filter((x) => x.d === bestDown) : [];
+    const topScore = Math.max(0, ...rs.map((r) => r.score));
+    const tops = rs.filter((r) => r.score === topScore);
+    const bonusTotal = rs.reduce((a, r) => a + num(r.bonusN), 0);
+    const moveTotal = hist.reduce((a, h) => a + h.summary.up + h.summary.down, 0);
+    const grp = (r) => (multi && S.settings.pools[r.group] ? ` (${esc(S.settings.pools[r.group].short)})` : '');
+
+    const kpis = `<div class="kpis">
+      <div class="kpi"><div class="v">${S.ended.round}</div><div class="k">진행한 라운드</div></div>
+      <div class="kpi"><div class="v">${rs.length}</div><div class="k">참가자</div></div>
+      <div class="kpi"><div class="v">${moveTotal}</div><div class="k">계급 이동 횟수 합계</div></div>
+      <div class="kpi"><div class="v">${stayed}</div><div class="k">끝까지 같은 계급 (${rs.length ? Math.round(stayed / rs.length * 100) : 0}%)</div></div>
+      <div class="kpi"><div class="v">${bonusTotal}</div><div class="k">보너스 칩 합계 (마지막 집계 기준)</div></div></div>`;
+    const hl = `<div class="card"><h2>한눈에 보기</h2><ul class="hl">
+      <li><span class="k">최고 점수</span><b>${namesOf(tops, (r) => nameOf(r) + grp(r))} · ${topScore}점</b></li>
+      ${mostMoves.length ? `<li><span class="k">계급 이동이 가장 많았던 사람</span><b>${namesOf(mostMoves, (x) => nameOf(x.r))} · ${maxMoves}번</b></li>` : ''}
+      ${ups.length ? `<li><span class="k">첫 집계 대비 순위가 가장 많이 오른 사람</span><b>${namesOf(ups, (x) => nameOf(x.r))} · ▲${bestUp} (${x0(ups[0])}위 → ${ups[0].r.rank}위)</b></li>` : ''}
+      ${downs.length ? `<li><span class="k">첫 집계 대비 순위가 가장 많이 내려간 사람</span><b>${namesOf(downs, (x) => nameOf(x.r))} · ▼${-bestDown} (${x0(downs[0])}위 → ${downs[0].r.rank}위)</b></li>` : ''}
+    </ul>
+    <h3>라운드별 계급 이동</h3>
+    <div class="rsum">${hist.map((h) => `<div><b>${esc(histShort(h))}</b> <span style="color:var(--ok)">▲${h.summary.up}</span> <span style="color:var(--warn)">▼${h.summary.down}</span> <span class="muted">＝${h.summary.stay}</span>${h.summary.missing ? ` <span style="color:var(--bad)">미제출 ${h.summary.missing}</span>` : ''}</div>`).join('')}</div></div>`;
+    function x0(x) { return x.j.firstRank; }
+
+    // 반별 최종 계급 명단
+    const lists = groups.map((g) => {
+      const mem = rs.filter((r) => r.group === g);
+      const cols = tiers().map((t, ti) => {
+        const m = mem.filter((r) => r.to === ti).sort((a, b) => a.rank - b.rank);
+        return `<div class="col card" style="border-top:5px solid ${esc(t.color)};box-shadow:none"><h3>${badge(ti)} <span class="muted" style="font-weight:600">${m.length}명</span></h3>
+          ${m.map((r) => `<div class="member"><span class="muted num small" style="min-width:4.2em">${rkLabel(r)}위</span><b>${nameOf(r)}</b><span class="sc num">${r.score}</span></div>`).join('') || '<p class="muted small">없음</p>'}</div>`;
+      }).join('');
+      return `<div class="card" style="margin-top:12px"><h2>${esc(groupName(g))} 최종 계급 <span class="muted small" style="font-weight:400">${mem.length}명 · 점수는 마지막 집계 기준</span></h2><div class="cols">${cols}</div></div>`;
+    }).join('');
+
+    // 라운드별 계급 이동 기록 표
+    const tables = groups.map((g) => {
+      const mem = rs.filter((r) => r.group === g).sort((a, b) => a.rank - b.rank);
+      const head = `<tr><th>순위</th><th>이름</th><th>시작</th>${roundCols.map((r) => `<th class="c" style="text-align:center">R${r}</th>`).join('')}<th>이동</th><th>점수</th></tr>`;
+      const sym = (ti) => `<span class="jc" style="background:${esc(tiers()[ti].color)}" title="${esc(tiers()[ti].name)}">${esc(tiers()[ti].symbol)}</span>`;
+      const body = mem.map((r) => {
+        const j = J[r.pid]; let prev = j.start;
+        const cells = roundCols.map((rd) => {
+          const x = j.rounds[rd]; if (!x) return '<td class="c muted">–</td>';
+          const mv = x.to < prev ? '<span class="mv up">↑</span>' : x.to > prev ? '<span class="mv down">↓</span>' : '';
+          prev = x.to; return `<td class="c">${sym(x.to)}${mv}</td>`;
+        }).join('');
+        return `<tr><td class="num">${rkLabel(r)}</td><td><b>${nameOf(r)}</b></td><td class="c">${sym(j.start)}</td>${cells}<td class="num">${j.moves}번</td><td class="num"><b>${r.score}</b></td></tr>`;
+      }).join('');
+      return `<h3>${esc(groupName(g))}</h3><div class="tablewrap"><table class="t jt">${head}${body}</table></div>`;
+    }).join('');
+
+    return `<div class="fhead"><h2>스타파워 최종 결과</h2><div class="sub">라운드 ${S.ended.round}까지 · ${esc(when)} 종료</div></div>
+      <div class="row noboard noprint" style="margin-bottom:12px;justify-content:flex-end">
+        <button class="btn" data-act="board">모니터 화면으로 보기</button>
+        <button class="btn" data-act="finalPrint">인쇄 / PDF 저장</button>
+        <button class="btn" data-act="finalCsv">최종 결과 CSV</button>
+        <button class="btn danger" data-act="reopenGame">종료 취소</button>
+      </div>
+      ${kpis}${hl}${lists}
+      <div class="card noboard" style="margin-top:12px"><h2>라운드별 계급 이동 기록</h2><p class="hint" style="margin:0 0 8px">시작 계급에서 라운드마다 어느 계급이었는지 보여줘요. ↑ 계급이 올라감 · ↓ 내려감 · – 그 라운드에 없었음</p>${tables}</div>`;
+  }
+
+  function histogram(rs, h) {
+    const isLatest = S.history.filter((x) => x.group === h.group).pop() === h;
+    const w = ui.binW;
+    const max = Math.max(0, ...rs.map((r) => r.score));
+    // 점수표에서 나올 수 있는 가장 낮은 점수 (기본 점수표 + 칩 5개면 7점). 그 이하만 가능한 낮은 구간(0-3, 4-7 등)은 다음 구간에 합쳐서 보여준다.
+    const table = (h && h.table) || S.settings.scoreTable;
+    const minScore = minPossible(table, Math.max(...Object.values(table).map((a) => a.length)));
+    let first = 0;
+    while ((first + 1) * w - 1 <= minScore) first++; // first: 구간 끝이 최저 가능 점수보다 큰 첫 구간
+    const nb = Math.max(Math.floor(max / w) + 1, first + 1);
+    const bins = Array.from({ length: nb }, () => []);
+    rs.slice().sort((a, b) => a.rank - b.rank).forEach((r) => bins[Math.max(first, Math.floor(r.score / w))].push(r));
+    const shown = bins.slice(first);
+    const cols = shown.map((b, j) => {
+      const i = first + j;
+      const lo = i * w, hi = lo + w - 1;
+      const tags = b.map((r) => { const p = P(r.pid) || { name: r.name }; return `<div class="tag" style="background:${esc(tiers()[r.to].color)}" title="${esc(p.name)} · ${r.score}점 · ${r.tied ? '공동 ' : ''}${r.rank}위${rankText(r.prevRank, r.rank)}">${esc(p.name || r.pid)}${isLatest ? jailMark(r.pid, 13) : ''}</div>`; }).join('');
+      const label = first > 0 && j === 0 ? `${hi} 이하` : (w === 1 ? lo : `${lo}–${hi}`);
+      return `<div class="bin"><div class="cnt">${b.length || ''}</div><div class="stack">${tags}</div><div class="lbl num">${label}</div></div>`;
+    }).join('');
+    return `<div class="card" style="margin-top:12px"><div class="row" style="justify-content:space-between"><h2 style="margin:0">점수 분포</h2>
+      <div class="legend">${tiers().map((t) => `<span><span class="badge" style="background:${esc(t.color)}">${esc(t.symbol)}</span> ${esc(t.name)}</span>`).join('')}</div></div>
+      <p class="hint" style="margin:2px 0 8px">이름표 색은 이번 집계 후의 계급이에요.</p>
+      <div class="hist">${cols}</div></div>`;
+  }
+
+  // ------------------------------------------------------------ 참가자 탭
+  function peopleView() {
+    const pools = myPools();
+    const started = S.round > 0;
+    const importCard = `<div class="card"><h2>명단 붙여넣기</h2>
+      <div class="grid2">
+        <div>
+          <div class="row"><label class="small">반 <select id="impPool" style="width:auto">${pools.map((p) => `<option value="${p}">${esc(S.settings.pools[p].name)}</option>`).join('')}</select></label></div>
+          <textarea id="impText" rows="7" placeholder="이름, 생년월일, 입학시기 (한 줄에 한 명)&#10;예)&#10;김하늘, 2008-03-14, 2024-03&#10;이도윤, 2009-11-02, 2025-03" style="margin-top:8px"></textarea>
+          <div class="row" style="margin-top:8px"><button class="btn primary" data-act="import">명단에 추가</button></div>
+          <div class="row" style="margin-top:14px"><b class="small">한 명 추가</b></div>
+          <div class="row" style="margin-top:4px"><select id="addPool" style="width:auto">${pools.map((p) => `<option value="${p}">${esc(S.settings.pools[p].name)}</option>`).join('')}</select>
+            <input type="text" id="addName" placeholder="이름" style="width:110px"><input type="text" id="addBirth" placeholder="2008-03-14" style="width:120px"><input type="text" id="addEnroll" placeholder="2024-03" style="width:100px">
+            <button class="btn" data-act="addPerson">추가</button></div>
+        </div>
+        <div class="hint">
+          <p style="margin-top:0"><b>초기 계급은 자동으로 정해져요.</b> 출석한 사람을 나이 많은 순(같으면 입학 빠른 순)으로 세워서 위 계급부터 정원만큼 채우고, 나머지는 모두 ${esc(tiers()[tiers().length - 1].name)}이 돼요. 정원은 설정 탭에서 바꿀 수 있어요.</p>
+          <p>행사 당일에는 <b>출석 칸</b>만 체크하세요. 안 온 사람은 체크를 빼면 계급 배정에서 빠지고, 나머지 사람이 위로 채워져요. 사람은 언제든 추가하거나 삭제할 수 있어요. 첫 집계를 시작하면 초기 계급이 고정돼요.</p>
+          <p>첫 집계가 시작된 뒤에 온 사람은 ${esc(tiers()[tiers().length - 1].name)}에서 시작해요. 생년만 입력해도 되지만, 같은 해 출생이면 월·일까지 있는 편이 순서가 정확해요.</p>
+          <p>숫자 4자리(PIN)는 자동으로 만들어져요. 아래 표에서 바꿀 수 있어요.</p>
+        </div>
+      </div></div>`;
+
+    const sections = pools.map((pk) => {
+      const pool = S.settings.pools[pk];
+      const mine = S.participants.filter((p) => p.pool === pk).slice().sort((a, b) =>
+        (b.present !== false) - (a.present !== false) || SP.dateKey(a.birth) - SP.dateKey(b.birth) || SP.dateKey(a.enroll) - SP.dateKey(b.enroll) || a.n - b.n);
+      const rows = mine.map((p) => `
+        <tr data-row="${esc(p.id)}" ${p.present === false ? 'style="opacity:.55"' : ''}>
+          <td style="text-align:center"><input type="checkbox" data-present="${esc(p.id)}" ${p.present !== false ? 'checked' : ''} aria-label="${esc(p.name)} 출석"></td>
+          <td>${p.present !== false ? badge(S.round > 0 ? p.cls : p.t0) : '<span class="muted small">결석</span>'}${p.jailed ? ' ' + SP.jailIcon(16) : ''}</td>
+          <td><input type="text" data-f="name" value="${esc(p.name)}" placeholder="이름" style="min-width:110px"></td>
+          <td><input type="${ui.showPin ? 'text' : 'password'}" data-f="pin" value="${esc(p.pin)}" maxlength="4" inputmode="numeric" autocomplete="new-password" aria-label="${esc(p.name)} PIN" style="width:72px;text-align:center"></td>
+          <td><input type="text" data-f="birth" value="${esc(p.birth)}" placeholder="2008-03-14" style="width:120px"></td>
+          <td><input type="text" data-f="enroll" value="${esc(p.enroll)}" placeholder="2024-03" style="width:100px"></td>
+          <td style="white-space:nowrap"><button class="btn sm" data-act="saveRow" data-pid="${esc(p.id)}">저장</button> <button class="btn sm danger" data-act="removeRow" data-pid="${esc(p.id)}">삭제</button></td>
+        </tr>`).join('');
+      const here = mine.filter((p) => p.present !== false).length;
+      const cnt = [0, 1, 2].map((t) => mine.filter((p) => p.present !== false && (S.round > 0 ? p.cls : p.t0) === t).length);
+      return `<div class="card"><h2>${esc(pool.name)} <span class="muted small" style="font-weight:400">출석 ${here}명 / 명단 ${mine.length}명 · ${tiers().map((t, i) => `${esc(t.name)} ${cnt[i] || 0}`).join(' / ')}</span></h2>
+        <div class="scroll"><table class="t"><thead><tr><th>출석</th><th>${started ? '현재 계급' : '초기 계급'}</th><th>이름</th><th>PIN</th><th>생년월일</th><th>입학시기</th><th></th></tr></thead><tbody>${rows || '<tr><td colspan="7" class="muted">아직 명단이 없어요. 위에서 붙여넣거나 한 명씩 추가하세요.</td></tr>'}</tbody></table></div></div>`;
+    }).join('');
+
+    const legacyPins = S.participants.filter((p) => p.name && !/^\d{4}$/.test(p.pin)).length;
+    const legacyNote = legacyPins ? `<div class="card noprint" style="margin-bottom:10px"><b>예전 방식(2자리) PIN이 ${legacyPins}명 있어요.</b> <span class="small">로그인은 그대로 되지만, 4자리로 바꾸려면 아래 <b>PIN 전체 다시 만들기</b>를 누르고 안내문을 다시 인쇄하세요.</span></div>` : '';
+    return legacyNote + importCard + `<div class="row noprint" style="margin-bottom:10px">
+      <button class="btn" data-act="togglePin" aria-pressed="${ui.showPin}">${ui.showPin ? 'PIN 숨기기' : 'PIN 보이기'}</button>
+      <button class="btn" data-act="print">이름·PIN 명단 인쇄</button>
+      <button class="btn" data-act="csv">현재 상태 CSV로 내보내기</button>
+      <button class="btn danger" data-act="regenPins">PIN 전체 다시 만들기</button></div>` + sections;
+  }
+
+  // ------------------------------------------------------------ 설정 탭
+  function settingsView() {
+    const st = S.settings;
+    const head = Array.from({ length: st.maxChips }, (_, i) => `<th>${i + 1}개</th>`).join('');
+    const rows = st.colors.map((c) => `<tr><th style="white-space:nowrap">${chip(c.key, 'sm')} ${esc(c.name)}</th>${st.scoreTable[c.key].map((v, i) => `<td><input type="number" step="any" data-sc="${c.key}:${i}" value="${v}" aria-label="${esc(c.name)} ${i + 1}개 점수"></td>`).join('')}</tr>`).join('');
+
+    const scoreCard = `<div class="card"><h2>점수표 (칩 색상 × 개수)</h2>
+      <div class="row" style="margin-bottom:8px">
+        <label class="small">칩 입력 최대 개수 <input type="number" id="maxChips" min="1" max="10" value="${st.maxChips}" style="width:70px;display:inline-block"></label>
+        <label class="small">보너스 칩 1개 점수 <input type="number" id="bonusValue" step="any" min="0" value="${st.bonusValue}" style="width:70px;display:inline-block"></label>
+        <label class="small">참가자 보너스 칩 입력 최대 <input type="number" id="maxBonus" min="0" max="50" value="${st.maxBonus}" style="width:70px;display:inline-block"></label>
+      </div>
+      <div class="tablewrap"><table class="t score"><thead><tr><th></th>${head}</tr></thead><tbody>${rows}</tbody></table></div>
+      <p class="hint">칸에는 <b>그 색을 n개 가졌을 때 받는 점수 전체</b>를 적어요. (예: 초록 4개 = 12 → 초록 4개 칸에 12) 칩 개수를 6개 이상으로 늘리면 새 칸은 ‘5개 점수 + (n−5)개 점수’로 채워져요. (예: 초록 6개 = 16 + 1 = 17) 저장한 뒤 값을 확인하고, 필요하면 고쳐주세요.<br>
+      저장하면 <b>이후 집계 마감부터</b> 새 점수표로 계산돼요. 이미 마감된 라운드는 바뀌지 않고, 집계가 열려 있어도 제출된 칩은 마감할 때 새 점수표로 다시 계산돼요.</p>
+      <div class="row"><button class="btn primary" data-act="saveScore">점수표 저장</button><button class="btn" data-act="resetScore">문서 기본값으로 복원</button></div></div>`;
+
+    const tierCard = `<div class="card"><h2>계급 이름·기호·색</h2>
+      <p class="hint" style="margin-top:0">위에서 아래 순서(최상위 → 최하위)예요.</p>
+      <div class="tablewrap"><table class="t"><thead><tr><th>순서</th><th>이름</th><th>기호</th><th>색</th></tr></thead><tbody>
+      ${st.tiers.map((t, i) => `<tr><td>${i + 1}위 계급</td><td><input type="text" data-tier="${i}:name" value="${esc(t.name)}" style="width:130px"></td><td><input type="text" data-tier="${i}:symbol" value="${esc(t.symbol)}" maxlength="2" style="width:60px;text-align:center"></td><td><input type="color" data-tier="${i}:color" value="${esc(t.color)}" style="width:54px;height:34px;padding:2px"></td></tr>`).join('')}
+      </tbody></table></div>
+      <div class="row" style="margin-top:8px"><button class="btn primary" data-act="saveTiers">저장</button></div></div>`;
+
+    const poolRows = myPools().map((k) => {
+      const p = st.pools[k];
+      return `<tr><td><input type="text" data-pool="${k}:name" value="${esc(p.name)}" style="width:130px"></td>
+        <td><input type="text" data-pool="${k}:short" value="${esc(p.short)}" style="width:60px"></td>
+        ${p.counts.map((n, i) => i === p.counts.length - 1 ? '<td class="muted small">나머지 전원</td>' : `<td><input type="number" min="0" data-pool="${k}:c${i}" value="${n}" style="width:64px" aria-label="${esc(p.name)} ${esc(st.tiers[i].name)} 정원"></td>`).join('')}
+        </tr>`;
+    }).join('');
+    const poolCard = `<div class="card"><h2>반 · 계급 정원</h2>
+      <div class="tablewrap"><table class="t"><thead><tr><th>반 이름</th><th>표시 접두</th>${st.tiers.map((t) => `<th>${esc(t.name)} 정원</th>`).join('')}</tr></thead><tbody>${poolRows}</tbody></table></div>
+      <p class="hint">맨 아래 계급은 정원 없이 ‘나머지 전원’이에요. 그래서 출석 인원이 바뀌어도 위 계급 인원은 그대로 유지돼요. 정원은 첫 집계 전에는 초기 계급 배정에, 이후에는 순위에 따른 계급 이동에 쓰여요.</p>
+      <div class="row"><button class="btn primary" data-act="savePools">저장</button></div></div>`;
+
+    const groups = st.merged ? ['all'] : [S.scope];
+    const sizeCard = `<div class="card"><h2>계급별 인원 (순위 → 계급 이동 기준)</h2>
+      <p class="hint" style="margin-top:0">기본값은 위 ‘계급 정원’이에요. 위에서부터 이 인원만큼 상위 계급이 되고, 나머지는 최하위 계급이 돼요.</p>
+      ${groups.map((g) => {
+        const ov = st.sizeOverride[g];
+        const def = g === 'all' ? st.tiers.map((_, t) => Object.values(st.pools).reduce((a, p) => a + p.counts[t], 0)) : st.pools[g].counts;
+        const cur = ov || def;
+        return `<div class="row" style="margin:6px 0"><b style="min-width:110px">${esc(groupName(g))}</b>
+          ${cur.map((n, i) => i === cur.length - 1 ? `<span class="small muted">${esc(st.tiers[i].name)} 나머지 전원</span>` : `<label class="small">${esc(st.tiers[i].name)} <input type="number" min="0" data-size="${g}:${i}" value="${n}" style="width:64px;display:inline-block"></label>`).join('')}
+          <span class="muted small">${ov ? '직접 설정함' : '기본값'}</span>
+          <button class="btn sm" data-act="saveSize" data-g="${g}">저장</button>${ov ? `<button class="btn sm" data-act="resetSize" data-g="${g}">기본값으로</button>` : ''}</div>`;
+      }).join('')}
+      ${st.merged ? '<p class="hint">두 반이 합쳐져서 전체 기준으로 계산해요. 기본값은 두 반 정원의 합이에요.</p>' : '<p class="hint">두 반을 합치는 것은 집계 탭의 ‘두 반 합치기’에서 양쪽 진행자가 모두 눌러야 해요.</p>'}</div>`;
+
+    const urls = S.urls || [];
+    const hostOk = !/^(localhost|127\.|\[::1\])/.test(location.hostname);
+    const addrs = hostOk ? [location.origin] : urls;
+    if (ui.qrIdx >= addrs.length) ui.qrIdx = 0;
+    const accessCard = `<div class="card"><h2>참가자 접속 주소</h2>
+      ${addrs.length ? `<div class="row" style="align-items:flex-start">
+        <div class="qr" id="qr" aria-label="접속 QR 코드"></div>
+        <div><select id="qrSel" style="width:auto">${addrs.map((u, i) => `<option value="${i}" ${i === ui.qrIdx ? 'selected' : ''}>${esc(u)}</option>`).join('')}</select>
+        <p class="hint">참가자 폰으로 QR을 찍거나 주소를 입력하면 돼요. 같은 와이파이에 연결돼 있어야 해요.<br>와이파이가 기기 간 통신을 막으면 진행자 노트북의 핫스팟에 연결하거나 외부 호스팅을 쓰세요.</p></div></div>` : '<p class="muted">접속 주소를 찾지 못했어요. 네트워크 연결을 확인해주세요.</p>'}</div>`;
+
+    const opsCard = `<div class="card"><h2>운영</h2>
+      <div class="row" style="margin-bottom:10px"><label class="small">${st.merged ? '통합 후' : esc(st.pools[S.scope].name)} 현재 라운드 번호 <input type="number" min="0" id="roundNo" value="${S.round}" style="width:70px;display:inline-block"></label><button class="btn sm" data-act="setRound">적용</button></div>
+      ${S.passwordFromEnv
+        ? '<p class="hint" style="margin:0 0 10px">진행자 비밀번호는 호스팅 설정의 환경변수(ADMIN_PASSWORD)로 지정돼 있어요. 바꾸려면 그곳에서 수정하고 다시 배포하세요.</p>'
+        : '<div class="row" style="margin-bottom:10px"><label class="small">진행자 비밀번호 변경 <input type="text" id="newPw" style="width:150px;display:inline-block" placeholder="4자 이상"></label><button class="btn sm" data-act="setPw">변경</button></div>'}
+      <div class="row"><button class="btn danger" data-act="resetGame">${st.merged ? '전체 게임 기록 초기화 (명단 유지, 통합도 풀림)' : '내 반 게임 기록 초기화 (명단은 유지)'}</button>${S.scope === 'find' ? '<button class="btn danger" data-act="resetAll">모든 데이터 초기화</button>' : ''}</div></div>`;
+
+    return `<div class="grid2">${scoreCard}${tierCard}</div>${poolCard}${sizeCard}<div class="grid2">${accessCard}${opsCard}</div>`;
+  }
+
+  function drawQr() {
+    const el = document.getElementById('qr');
+    const sel = document.getElementById('qrSel');
+    if (!el || !sel || typeof qrcode === 'undefined') return;
+    const q = qrcode(0, 'M'); q.addData(sel.options[sel.selectedIndex].text); q.make();
+    el.innerHTML = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+  }
+
+  function dismissAlerts(keys) {
+    keys.forEach((k) => ui.dismissed.add(k));
+    store.set('sp-dismissed', JSON.stringify([...ui.dismissed].slice(-300)));
+    render();
+  }
+
+  // ------------------------------------------------------------ 칩 입력 모달
+  function chipModal(pid) {
+    const p = P(pid);
+    const scoreMode = !S.open; // 집계 중이 아니면 현재 칩·보너스 칩을 고친다 (점수만 바뀌고 계급은 다음 마감 때 반영)
+    let draft = scoreMode ? p.chips.slice() : (S.submissions[pid] && S.submissions[pid].chips.slice()) || [];
+    let bonusDraft = scoreMode ? p.bonusN : 0;
+    const bg = document.createElement('div');
+    bg.className = 'modal-bg';
+    document.body.appendChild(bg);
+    const draw = () => {
+      const counts = {}; draft.forEach((c) => (counts[c] = (counts[c] || 0) + 1));
+      const full = draft.length >= S.settings.maxChips;
+      bg.innerHTML = `<div class="modal" role="dialog" aria-label="칩 입력">
+        <h2>${esc(p.name)} ${scoreMode ? '점수 수정' : `칩 ${S.submissions[pid] ? '수정' : '대신 입력'}`}</h2>
+        <div class="chips" style="gap:6px;min-height:34px">${draft.map((c, i) => `<button data-rm="${i}" style="background:none;border:none;padding:0" aria-label="${esc(colorName(c))} 빼기">${chip(c, 'lg')}</button>`).join('') || '<span class="muted small">칩을 추가해주세요</span>'}</div>
+        <div class="palette">${colors().map((c) => `<button class="pal" data-add="${c.key}" ${full ? 'disabled' : ''}>${chip(c.key, 'lg')}<span>${esc(c.name)}</span><span class="muted small">${counts[c.key] || 0}개</span></button>`).join('')}</div>
+        <div class="row" style="justify-content:space-between"><b>칩 점수 ${calc(draft)}점${scoreMode ? ` · 합계 ${calc(draft) + bonusDraft * S.settings.bonusValue}점` : ''}</b><span class="muted small">${draft.length} / ${S.settings.maxChips}개</span></div>
+        ${scoreMode ? `<div class="row" style="margin-top:8px"><label class="small">보너스 칩 <input type="number" min="0" max="999" id="mBonus" value="${bonusDraft}" style="width:80px;display:inline-block"> 개 (1개 = ${S.settings.bonusValue}점)</label></div>
+        <p class="hint" style="margin:6px 0 0">점수만 바뀌고 순위와 계급은 다음 집계를 마감할 때 반영돼요.</p>` : ''}
+        <div class="row" style="margin-top:12px;justify-content:flex-end">
+          ${!scoreMode && S.submissions[pid] ? '<button class="btn danger" data-m="clear">제출 취소</button>' : ''}
+          <button class="btn" data-m="close">닫기</button><button class="btn primary" data-m="save" ${scoreMode || draft.length ? '' : 'disabled'}>저장</button></div></div>`;
+    };
+    draw();
+    bg.addEventListener('input', (ev) => { if (ev.target.id === 'mBonus') bonusDraft = Math.max(0, Math.floor(Number(ev.target.value)) || 0); });
+    bg.addEventListener('click', async (ev) => {
+      const t = ev.target.closest('button'); if (ev.target === bg) return bg.remove();
+      if (!t) return;
+      if (t.dataset.add) { if (draft.length < S.settings.maxChips) draft.push(t.dataset.add); draw(); }
+      else if (t.dataset.rm !== undefined) { draft.splice(Number(t.dataset.rm), 1); draw(); }
+      else if (t.dataset.m === 'close') bg.remove();
+      else if (t.dataset.m === 'save') {
+        const ok = scoreMode ? await act({ type: 'setScore', pid, chips: draft, bonus: bonusDraft }, '점수를 고쳤어요 (계급은 다음 마감 때 반영돼요)') : await act({ type: 'setChips', pid, chips: draft }, '저장했어요');
+        if (ok) bg.remove();
+      }
+      else if (t.dataset.m === 'clear') { if (await act({ type: 'clearSub', pid }, '제출을 취소했어요')) bg.remove(); }
+    });
+  }
+
+  // ------------------------------------------------------------ 이벤트
+  const readRow = (pid) => {
+    const tr = root.querySelector(`tr[data-row="${CSS.escape(pid)}"]`);
+    const f = {}; tr.querySelectorAll('[data-f]').forEach((i) => (f[i.dataset.f] = i.value));
+    return f;
+  };
+
+  const handlers = {
+    logout,
+    open: () => act({ type: 'open' }, `라운드 ${S.round + 1} 집계를 열었어요`),
+    cancelOpen: () => act({ type: 'cancelOpen' }),
+    close: async () => {
+      const missing = active().filter((p) => !S.submissions[p.id]).length;
+      const msg = missing ? `아직 ${missing}명이 제출하지 않았어요. 미제출자는 이전 점수가 유지돼요.\n그래도 마감하고 계급을 이동할까요?` : '집계를 마감하고 계급을 이동할까요?';
+      if (!confirm(msg)) return;
+      if (await act({ type: 'close' }, '계급 이동이 끝났어요')) { ui.resultRound = null; tab = 'results'; store.set('sp-tab', tab); render(); }
+    },
+    endGame: async () => {
+      const n = S.round;
+      if (!confirm(`라운드 ${n}까지의 결과로 게임을 종료할까요?\n\n종료하면 집계 시작과 명단·계급 수정이 잠기고, 참가자 화면에는 각자의 최종 결과가 나가요.\n실수라면 ‘종료 취소’로 다시 이어갈 수 있어요.`)) return;
+      if (await act({ type: 'endGame' }, '게임을 종료했어요')) { tab = 'final'; store.set('sp-tab', tab); render(); window.scrollTo(0, 0); }
+    },
+    reopenGame: () => { if (confirm('종료를 취소하고 게임을 이어갈까요?\n참가자 화면이 다시 일반 화면으로 돌아가요.')) act({ type: 'reopenGame' }, '종료를 취소했어요'); },
+    toFinal: () => { tab = 'final'; store.set('sp-tab', tab); render(); },
+    finalPrint: () => window.print(),
+    finalCsv: () => {
+      const q = (v) => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
+      const J = journeys(); const mh = S.history.filter((h) => h.group === S.viewGroup); const last = mh[mh.length - 1];
+      const roundCols = [...new Set(S.history.map((h) => h.round))].sort((a, b) => a - b);
+      const head = ['반', '최종순위', '이름', '최종계급', '최종점수', '시작계급', ...roundCols.map((r) => `라운드${r}계급`), '계급이동횟수'];
+      const lines = [head.map(q).join(',')];
+      last.results.slice().sort((a, b) => (a.group === b.group ? 0 : a.group < b.group ? -1 : 1) || a.rank - b.rank).forEach((r) => {
+        const j = J[r.pid];
+        lines.push([groupName(r.group), (r.tied ? '공동 ' : '') + r.rank, (P(r.pid) || {}).name || r.name, tiers()[r.to].name, r.score, tiers()[j.start].name,
+          ...roundCols.map((r) => (j.rounds[r] ? tiers()[j.rounds[r].to].name : '')), j.moves].map(q).join(','));
+      });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8' }));
+      a.download = 'starpower-최종결과.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    },
+    undo: () => { if (confirm('마지막 집계를 되돌리고 입력 상태로 돌아갈까요? 계급과 점수가 마감 전으로 돌아가요.')) act({ type: 'undo' }, '되돌렸어요'); },
+    bonus: (el) => act({ type: 'setBonus', pid: el.dataset.pid, n: num(S.bonus[el.dataset.pid]) + num(el.dataset.d) }),
+    chips: (el) => chipModal(el.dataset.pid),
+    subFilter: (el) => { ui.sub = el.dataset.v; render(); },
+    alertCfg: () => { ui.alertCfg = !ui.alertCfg; render(); },
+    alertSave: () => act({ type: 'saveSettings', patch: { alerts: {
+      highNoBonus: { on: document.getElementById('alHnOn').checked, score: Number(document.getElementById('alHnScore').value) },
+      bonusTotal: { on: document.getElementById('alBtOn').checked },
+      scoreJump: { on: document.getElementById('alSjOn').checked, delta: Number(document.getElementById('alSjDelta').value) } } } }, '알림 설정을 저장했어요'),
+    alertDismiss: (el) => { dismissAlerts([el.dataset.k]); },
+    alertDismissAll: () => dismissAlerts(liveAlerts().map(alertKey)),
+    alertRestore: () => { ((S.alerts || []).map(alertKey)).forEach((k) => ui.dismissed.delete(k)); store.set('sp-dismissed', JSON.stringify([...ui.dismissed].slice(-300))); ui.seenAlerts.clear(); render(); },
+    board: () => {
+      document.body.classList.add('board');
+      const exit = () => { document.body.classList.remove('board'); document.removeEventListener('fullscreenchange', onfs); const b = document.getElementById('exitBoard'); if (b) b.remove(); };
+      const onfs = () => { if (!document.fullscreenElement) exit(); };
+      document.addEventListener('fullscreenchange', onfs);
+      const btn = document.createElement('button'); btn.id = 'exitBoard'; btn.className = 'btn sm'; btn.textContent = '모니터 화면 닫기';
+      btn.style.cssText = 'position:fixed;right:12px;top:10px;z-index:40;opacity:.55'; btn.onclick = () => { if (document.fullscreenElement) document.exitFullscreen(); exit(); };
+      document.body.appendChild(btn);
+      if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
+    },
+    import: () => act({ type: 'importPeople', pool: document.getElementById('impPool').value, text: document.getElementById('impText').value }, '명단에 추가했어요'),
+    addPerson: () => act({ type: 'addPerson', pool: document.getElementById('addPool').value, name: document.getElementById('addName').value, birth: document.getElementById('addBirth').value, enroll: document.getElementById('addEnroll').value }, '추가했어요'),
+    saveRow: (el) => act({ type: 'updateParticipant', pid: el.dataset.pid, fields: readRow(el.dataset.pid) }, '저장했어요'),
+    removeRow: (el) => { const p = P(el.dataset.pid); if (confirm(S.round > 0 ? `${p.name} 님을 명단에서 삭제할까요?\n게임이 이미 시작돼서 지난 라운드 기록에는 이름만 남아요. 잠깐 빠지는 거라면 삭제 대신 출석 체크를 빼세요.` : `${p.name} 님을 명단에서 삭제할까요?`)) act({ type: 'removePerson', pid: p.id }, '삭제했어요'); },
+    jail: (el) => { const p = P(el.dataset.pid); const j = el.dataset.j === '1'; act({ type: 'setJailed', pid: el.dataset.pid, jailed: j }, j ? `${p.name} 님을 구속했어요` : `${p.name} 님을 석방했어요`); },
+    releaseAll: () => { const n = S.participants.filter((p) => p.name && p.jailed).length; if (n && confirm(`구속 중인 ${n}명을 모두 석방할까요?`)) act({ type: 'releaseAll' }, `${n}명을 석방했어요`); },
+    togglePin: () => { ui.showPin = !ui.showPin; render(); }, // 기본은 숨김. 새로고침하면 다시 숨겨진다 (화면 공유 중 노출 방지)
+    regenPins: () => { if (confirm('모든 참가자의 PIN을 새로 만들까요? 이미 안내했다면 다시 안내해야 해요.')) act({ type: 'regeneratePins' }, 'PIN을 새로 만들었어요'); },
+    print: () => {
+      const w = window.open('', '_blank'); if (!w) return flash('팝업이 막혀 있어요', true);
+      const rows = S.participants.filter((p) => p.name).map((p) => `<tr><td>${esc(p.name)}</td><td style="font-size:22px;font-weight:800;text-align:center">${esc(p.pin)}</td><td>${esc(S.labels[p.id])}</td></tr>`).join('');
+      w.document.write(`<!doctype html><meta charset="utf-8"><title>참가자 명단</title><style>body{font-family:sans-serif;padding:20px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #999;padding:8px}</style><h2>스타파워 참가자 (이름 + 숫자 4자리)</h2><table><tr><th>이름</th><th>숫자 4자리</th><th>아이디</th></tr>${rows}</table>`);
+      w.document.close(); w.print();
+    },
+    csv: () => {
+      const q = (v) => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
+      const lines = [['아이디', '반', '이름', 'PIN', '계급', '순위', '직전순위', '점수', '칩', '보너스칩', '생년월일', '입학시기', '직전집계'].map(q).join(',')];
+      S.participants.filter((p) => p.name).forEach((p) => lines.push([S.labels[p.id], S.settings.pools[p.pool].name, p.name, p.pin, tiers()[p.cls].name, p.rank || '', p.prevRank == null ? '' : p.prevRank, p.score, p.chips.map(colorName).join('/'), p.bonusN, p.birth, p.enroll, p.missing ? '미제출' : ''].map(q).join(',')));
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8' }));
+      a.download = `starpower-라운드${S.round}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    },
+    saveScore: () => {
+      const table = {};
+      S.settings.colors.forEach((c) => (table[c.key] = []));
+      root.querySelectorAll('[data-sc]').forEach((i) => { const [k, idx] = i.dataset.sc.split(':'); table[k][Number(idx)] = i.value === '' ? 0 : Number(i.value); });
+      const maxChips = Number(document.getElementById('maxChips').value);
+      if (maxChips !== S.settings.maxChips) { // 칩 개수를 바꾼 경우: 표 길이는 서버가 맞춰줌
+        S.settings.colors.forEach((c) => { table[c.key] = table[c.key].slice(0, maxChips); });
+      }
+      act({ type: 'saveSettings', patch: { maxChips, bonusValue: Number(document.getElementById('bonusValue').value), maxBonus: Number(document.getElementById('maxBonus').value), scoreTable: table } }, '점수표를 저장했어요');
+    },
+    resetScore: () => { if (confirm('점수표와 칩 최대 개수를 문서 기본값으로 되돌릴까요?')) act({ type: 'resetScoreTable' }, '기본값으로 복원했어요'); },
+    saveTiers: () => {
+      const t = tiers().map((x) => ({ ...x }));
+      root.querySelectorAll('[data-tier]').forEach((i) => { const [idx, f] = i.dataset.tier.split(':'); t[Number(idx)][f] = i.value; });
+      act({ type: 'saveSettings', patch: { tiers: t } }, '저장했어요');
+    },
+    savePools: () => {
+      const pools = {};
+      root.querySelectorAll('[data-pool]').forEach((i) => {
+        const [k, f] = i.dataset.pool.split(':'); pools[k] = pools[k] || { counts: [] };
+        if (f === 'name' || f === 'short') pools[k][f] = i.value; else pools[k].counts[Number(f.slice(1))] = num(i.value);
+      });
+      Object.values(pools).forEach((pp) => { pp.counts[S.settings.tiers.length - 1] = 0; });
+      act({ type: 'saveSettings', patch: { pools } }, '저장했어요');
+    },
+    saveSize: (el) => {
+      const g = el.dataset.g; const arr = [];
+      root.querySelectorAll(`[data-size^="${g}:"]`).forEach((i) => (arr[Number(i.dataset.size.split(':')[1])] = num(i.value)));
+      arr[S.settings.tiers.length - 1] = 0;
+      act({ type: 'saveSettings', patch: { sizeOverride: { [g]: arr } } }, '계급 인원을 저장했어요');
+    },
+    resetSize: (el) => act({ type: 'saveSettings', patch: { sizeOverride: { [el.dataset.g]: null } } }, '기본값으로 되돌렸어요'),
+    mergeReady: async (el) => {
+      const ready = el.dataset.ready === '1';
+      if (ready && !confirm('합치기를 누를까요?\n\n상대 반 진행자도 합치기를 누르면 바로 하나로 합쳐지고, 이 화면은 찾는·여는반 진행자 화면으로 통합돼요.\n누른 뒤에는 이 반의 집계를 새로 시작할 수 없어요. (취소하면 풀려요)')) return;
+      if (await act({ type: 'setMergeReady', ready })) flash(S.merge && S.merge.done ? '두 반이 하나로 합쳐졌어요' : ready ? '합치기를 눌렀어요. 상대 반을 기다리는 중이에요' : '합치기를 취소했어요');
+    },
+    setRound: () => act({ type: 'setRound', round: document.getElementById('roundNo').value }, '라운드 번호를 바꿨어요'),
+    setPw: async () => {
+      if (await act({ type: 'setPassword', password: document.getElementById('newPw').value })) { logout(); flash('비밀번호를 바꿨어요. 새 비밀번호로 다시 로그인해주세요'); }
+    },
+    resetGame: () => { if (confirm(S.settings.merged ? '두 반 전체의 점수·순위·라운드 기록을 모두 지우고 통합도 풀까요? (명단은 유지돼요)' : '내 반의 점수·순위·라운드 기록을 모두 지울까요? (명단은 유지돼요, 다른 반은 그대로예요)')) act({ type: 'resetGame' }, '초기화했어요'); },
+    resetAll: () => { if (confirm('이름 배정과 설정을 포함한 모든 데이터를 지울까요? 되돌릴 수 없어요.') && confirm('정말 모두 초기화할까요?')) act({ type: 'resetAll' }, '모두 초기화했어요'); },
+  };
+
+  root.addEventListener('click', (ev) => {
+    const tabBtn = ev.target.closest('[data-tab]');
+    if (tabBtn) { ev.preventDefault(); tab = tabBtn.dataset.tab; store.set('sp-tab', tab); render(); return; }
+    const el = ev.target.closest('[data-act]');
+    if (el && handlers[el.dataset.act]) { ev.preventDefault(); handlers[el.dataset.act](el); }
+  });
+  root.addEventListener('input', (ev) => {
+    if (ev.target.id === 'filter') { ui.filter = ev.target.value; const w = document.getElementById('tblWrap'); if (w) w.innerHTML = S.open ? tallyInner() : scoreEditInner(); }
+  });
+  root.addEventListener('change', (ev) => {
+    const t = ev.target;
+    if (t.id === 'resRound') { ui.resultRound = Number(t.value); render(); }
+    else if (t.id === 'resGroup') { ui.resultGroup = t.value; render(); }
+    else if (t.id === 'binW') { ui.binW = Number(t.value); render(); }
+    else if (t.id === 'qrSel') { ui.qrIdx = Number(t.value); drawQr(); }
+    else if (t.dataset && t.dataset.present) { act({ type: 'setPresent', pid: t.dataset.present, present: t.checked }); }
+  });
+  root.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter' && ev.target.closest('tr[data-row]') && ev.target.tagName === 'INPUT') {
+      const pid = ev.target.closest('tr[data-row]').dataset.row; ev.preventDefault(); handlers.saveRow({ dataset: { pid } });
+    }
+  });
+
+  // ------------------------------------------------------------ 실시간
+  // 서버가 변경을 바로 알려줄 수 있으면(push) SSE, 아니면(Netlify 등) 3초 안팎으로 확인
+  let deb = null, es = null;
+  function ensureSse(push) {
+    if (!push || es) return;
+    try { es = new EventSource('/api/events'); es.addEventListener('update', () => { clearTimeout(deb); deb = setTimeout(fetchState, 250); }); } catch (e) {}
+  }
+  (function schedule() {
+    setTimeout(async () => {
+      if (token && document.visibilityState === 'visible') await fetchState();
+      schedule();
+    }, (S && S.push ? 20000 : 3000) + Math.random() * 800);
+  })();
+
+  render();
+  if (token) fetchState();
+})();
+</script>
+</body>
+</html>

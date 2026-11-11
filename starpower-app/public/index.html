@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>스타파워 참가자</title>
+<link rel="stylesheet" href="/style.css?v=2.2.2">
+<style>.chip.empty{background:#b8bcc4!important;border:3px solid #9ea3ab!important}</style>
+<style>
+  .wrap { max-width: 480px; margin: 0 auto; padding: 14px 16px calc(40px + env(safe-area-inset-bottom)); }
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+  .top .who { font-weight: 800; font-size: 18px; }
+  .top .id { font-size: 13px; color: var(--ink-2); }
+  .tiercard { text-align: center; padding: 22px 16px 18px; color: #fff; border: none; }
+  .tiercard .sym { font-size: 56px; line-height: 1; }
+  .tiercard .tname { font-size: 26px; font-weight: 800; margin-top: 6px; }
+  .tiercard .sub { opacity: .92; font-size: 14px; }
+  .stats { display: flex; margin-top: 14px; background: rgba(255,255,255,.18); border-radius: 12px; }
+  .stats > div { flex: 1; padding: 10px 4px; }
+  .stats > div + div { border-left: 1px solid rgba(255,255,255,.3); }
+  .stats .v { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .stats .k { font-size: 12px; opacity: .9; }
+  .stats .delta { font-size: 12px; font-weight: 700; margin-top: 2px; }
+  .banner { border-left: 6px solid var(--accent); }
+  .banner.up { border-color: var(--ok); background: #f1faf4; }
+  .banner.down { border-color: var(--warn); background: #fff7ec; }
+  .banner h3 { margin: 0 0 4px; font-size: 18px; }
+  .banner p { margin: 0 0 10px; }
+  h2 { font-size: 17px; margin: 0 0 10px; }
+  .slots { display: flex; gap: 8px; justify-content: center; margin: 12px 0; flex-wrap: wrap; }
+  .slot { background: none; border: none; padding: 2px; border-radius: 50%; }
+  .palette { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .pal {
+    display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 2px;
+    background: #fff; border: 1px solid var(--line); border-radius: 12px; font-weight: 700; font-size: 13px;
+  }
+  .pal:active { background: #f1f0ec; }
+  .pal .cnt { font-size: 12px; color: var(--ink-2); font-weight: 600; }
+  .breakdown { margin: 12px 0 0; padding: 0; list-style: none; font-size: 15px; }
+  .breakdown li { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px dashed var(--line); }
+  .total { display: flex; justify-content: space-between; align-items: baseline; margin: 10px 0 14px; font-weight: 800; }
+  .total .n { font-size: 30px; font-variant-numeric: tabular-nums; }
+  .done { text-align: center; }
+  .done .n { font-size: 34px; font-weight: 800; }
+  table.rule { width: 100%; border-collapse: collapse; font-size: 14px; text-align: center; }
+  table.rule th, table.rule td { border: 1px solid var(--line); padding: 5px 2px; }
+  table.rule th { background: #f4f3ee; }
+  details summary { cursor: pointer; font-weight: 700; }
+  .login { margin-top: 12vh; }
+  .login h1 { font-size: 26px; margin: 0 0 4px; }
+  .field { margin: 12px 0; }
+  .field label { display: block; font-weight: 700; margin-bottom: 4px; font-size: 14px; }
+  .err { color: var(--bad); min-height: 1.4em; font-size: 14px; }
+  .journey { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+  .journey .st { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 44px; }
+  .jc { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 30px; border-radius: 9px; color: #fff; font-weight: 800; font-size: 16px; }
+  .journey .lb { font-size: 11px; color: var(--ink-2); }
+  .journey .ar { color: var(--ink-2); font-size: 12px; padding-bottom: 14px; }
+  .journey .mv { font-size: 11px; font-weight: 700; } .journey .mv.up { color: var(--ok); } .journey .mv.down { color: var(--warn); }
+  .endlist { margin: 10px 0 0; padding: 0; list-style: none; font-size: 15px; }
+  .endlist li .jc { width: 28px; height: 24px; font-size: 13px; }
+  .endlist li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px dashed var(--line); }
+  .link { background: none; border: none; color: var(--ink-2); text-decoration: underline; padding: 8px 0; }
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<script src="/shared.js?v=2.2.2"></script>
+<script>
+(function () {
+  'use strict';
+  const $app = document.getElementById('app');
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+    del(k) { try { localStorage.removeItem(k); } catch (e) {} },
+  };
+
+  let token = store.get('sp-token');
+  let data = null;          // /api/me 응답
+  let draft = [];           // 입력 중인 칩
+  let bonusDraft = 0;       // 입력 중인 보너스 칩 개수
+  let draftRound = null;
+  let loginError = '';
+  let busy = false;
+  let toast = '';
+
+  async function api(path, opts) {
+    const res = await fetch(path, Object.assign({ headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (token || '') } }, opts));
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) { const e = new Error(body.error || '오류가 발생했어요'); e.status = res.status; throw e; }
+    return body;
+  }
+
+  let lastJson = '';
+  async function refresh() {
+    if (!token) return render();
+    try {
+      const d = await api('/api/me');
+      ensureSse(d.push);
+      const j = JSON.stringify(d);
+      const roundChanged = !data || d.round !== draftRound || (!data.open && d.open);
+      data = d;
+      if (roundChanged) { draft = d.submission ? d.submission.chips.slice() : []; bonusDraft = d.submission ? d.submission.bonus || 0 : 0; draftRound = d.round; }
+      if (j === lastJson && !roundChanged) return; // 바뀐 게 없으면 다시 그리지 않음
+      lastJson = j;
+      render();
+    } catch (e) {
+      if (e.status === 401) { token = null; store.del('sp-token'); data = null; lastJson = ''; render(); }
+      // 네트워크 오류 등은 화면을 그대로 두고 다음 갱신 때 다시 시도
+    }
+  }
+
+  // ---- 화면 -------------------------------------------------------
+  function chipDot(key, cls) { return `<span class="chip ${esc(key)} ${cls || ''}"></span>`; }
+  const colorName = (key) => (data.config.colors.find((c) => c.key === key) || {}).name || key;
+
+  function renderLogin() {
+    $app.innerHTML = `
+      <div class="login card">
+        <h1>스타파워</h1>
+        <p class="muted">진행자가 알려준 이름과 숫자 4자리로 들어와주세요.</p>
+        <form id="lf">
+          <div class="field"><label for="n">이름</label><input id="n" type="text" autocomplete="off" autocapitalize="off" required></div>
+          <div class="field"><label for="p">숫자 4자리</label><input id="p" type="text" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="off" required></div>
+          <div class="err" role="alert">${esc(loginError)}</div>
+          <button class="btn primary big" ${busy ? 'disabled' : ''}>들어가기</button>
+        </form>
+      </div>`;
+    document.getElementById('lf').onsubmit = async (ev) => {
+      ev.preventDefault();
+      busy = true; loginError = '';
+      try {
+        const r = await api('/api/login', { method: 'POST', body: JSON.stringify({ name: document.getElementById('n').value, pin: document.getElementById('p').value }) });
+        token = r.token; store.set('sp-token', token); busy = false;
+        await refresh();
+      } catch (e) { busy = false; loginError = e.message; renderLogin(); }
+    };
+  }
+
+  function scoreBreakdown(chips) {
+    return SP.calcScore(chips, data.config.scoreTable);
+  }
+
+  function renderMain() {
+    const { me, config } = data;
+    const tier = config.tiers[me.tier];
+    const lastAck = store.get('ack-' + me.id);
+    const showBanner = me.hasResult && (me.change === 'up' || me.change === 'down') && lastAck !== String(data.tallyCount);
+
+    let html = `
+      <div class="top">
+        <div><div class="who">${esc(me.name)}</div><div class="id">${esc(me.label)} · ${esc(data.poolName)}</div></div>
+        <span class="pill ${data.open ? 'live' : ''}">라운드 ${data.round}${data.open ? ' · 집계 중' : ''}</span>
+      </div>
+      <div class="card tiercard" style="background:${esc(tier.color)}">
+        <div class="sym" aria-hidden="true">${esc(tier.symbol)}</div>
+        <div class="tname">${esc(tier.name)} 계급</div>
+        ${me.hasResult ? `
+        <div class="stats">
+          <div><div class="v">${me.tied ? '<span style="font-size:14px">공동 </span>' : ''}${me.rank}<span style="font-size:14px">위</span></div><div class="k">${me.groupSize}명 중</div>${rankDeltaHtml(me)}</div>
+          <div><div class="v">${me.score}</div><div class="k">점수</div></div>
+        </div>` : `<div class="sub" style="margin-top:8px">아직 집계 전이에요. 첫 집계가 끝나면 순위가 나와요.</div>`}
+      </div>`;
+
+    if (showBanner) {
+      const prev = config.tiers[me.prevTier];
+      const up = me.change === 'up';
+      html += `
+      <div class="card banner ${me.change}">
+        <h3>${up ? '계급이 올라갔어요' : '계급이 내려갔어요'}</h3>
+        <p><b>${esc(prev.symbol)} ${esc(prev.name)}</b> → <b>${esc(tier.symbol)} ${esc(tier.name)}</b><br>${esc(tier.name)} 계급 자리로 이동해주세요.</p>
+        <button class="btn" id="ack">이동했어요</button>
+      </div>`;
+    } else if (me.hasResult && me.change === 'stay' && !data.open) {
+      html += `<div class="card small muted">이번 집계에서는 계급이 그대로예요.</div>`;
+    }
+
+    if (me.jailed) {
+      html += `<div class="card" style="background:#15171c;border:3px solid #000;color:#fff;text-align:center;padding:28px 16px"><div style="display:flex;justify-content:center">${SP.jailIcon(96)}</div><div style="font-size:44px;font-weight:900;line-height:1.15;margin-top:10px;letter-spacing:.02em">수감 중</div><p style="margin:12px 0 0;font-size:20px;font-weight:700;line-height:1.4">지금은 칩을 제출할 수 없어요</p><p style="margin:6px 0 0;font-size:15px;color:#c9ccd4">석방되면 이 화면에서 다시 입력할 수 있어요.<br>순위와 계급은 그대로 계산돼요.</p></div>`;
+    } else if (data.open) html += renderInput();
+    else {
+      html += `<div class="card"><h2>점수 입력</h2><p class="muted" style="margin:0">진행자가 집계를 열면 여기서 칩을 입력할 수 있어요.</p></div>`;
+    }
+
+    if (me.hasResult) {
+      html += `<div class="card"><h2>내 칩 (지난 집계)</h2>
+        <div class="chips">${me.chips.map((c) => chipDot(c)).join('') || '<span class="muted small">입력한 칩이 없어요</span>'}</div>
+        ${me.missing ? '<p class="small muted" style="margin:8px 0 0">지난 집계에서 제출하지 않아 이전 기록이 유지됐어요.</p>' : ''}
+        ${me.bonusN ? `<p class="small" style="margin:8px 0 0">보너스 칩 ${me.bonusN}개 (+${me.bonusN * config.bonusValue}점) 포함</p>` : ''}
+      </div>`;
+    }
+
+    html += renderRuleTable();
+    html += `<div style="text-align:center"><button class="link" id="logout">다른 사람으로 로그인</button></div>`;
+    if (toast) html += `<div class="card small" role="status" style="position:sticky;bottom:12px;border-color:var(--accent)">${esc(toast)}</div>`;
+    $app.innerHTML = html;
+    bindMain();
+  }
+
+  // 게임 종료 후 화면: 내 최종 결과 요약
+  function renderEnded() {
+    const { me, config } = data;
+    const f = data.final;
+    const tier = config.tiers[me.tier];
+    const sym = (ti, extra) => `<span class="jc" style="background:${esc(config.tiers[ti].color)}" title="${esc(config.tiers[ti].name)}">${esc(config.tiers[ti].symbol)}</span>${extra || ''}`;
+    let html = `
+      <div class="top">
+        <div><div class="who">${esc(me.name)}</div><div class="id">${esc(me.label)} · ${esc(data.poolName)}</div></div>
+        <span class="pill">게임 종료</span>
+      </div>
+      <div class="card tiercard" style="background:${esc(tier.color)}">
+        <div class="sub" style="margin-bottom:6px">최종 결과</div>
+        <div class="sym" aria-hidden="true">${esc(tier.symbol)}</div>
+        <div class="tname">${esc(tier.name)} 계급</div>
+        ${me.hasResult ? `
+        <div class="stats">
+          <div><div class="v">${me.tied ? '<span style="font-size:14px">공동 </span>' : ''}${me.rank}<span style="font-size:14px">위</span></div><div class="k">${me.groupSize}명 중</div></div>
+          <div><div class="v">${me.score}</div><div class="k">점수</div></div>
+        </div>` : '<div class="sub" style="margin-top:8px">참여해 주셔서 고마워요.</div>'}
+      </div>`;
+    if (f && f.journey.length) {
+      const steps = f.journey.map((e, i) => {
+        const prev = i ? f.journey[i - 1].tier : null;
+        const mv = prev === null ? '' : e.tier < prev ? '<span class="mv up">↑</span>' : e.tier > prev ? '<span class="mv down">↓</span>' : '<span class="mv">&nbsp;</span>';
+        return `${i ? '<span class="ar" aria-hidden="true">›</span>' : ''}<div class="st">${sym(e.tier)}<span class="lb">${e.r === 0 ? '시작' : 'R' + e.r}</span>${mv}</div>`;
+      }).join('');
+      html += `<div class="card"><h2>내 계급 이동</h2>
+        <div class="journey" role="img" aria-label="라운드별 계급 이동">${steps}</div>
+        <ul class="endlist">
+          <li><span>계급이 바뀐 횟수</span><b>${f.moves}번${f.moves ? ` (↑${f.ups} ↓${f.downs})` : ''}</b></li>
+          ${f.best ? `<li><span>가장 높았던 순위</span><b>${f.best.rank}위 (라운드 ${f.best.round})</b></li>` : ''}
+          <li><span>진행한 라운드</span><b>${f.rounds}회</b></li>
+        </ul></div>`;
+    }
+    if (f) {
+      html += `<div class="card"><h2>${esc(data.poolName)} 최종 계급 인원</h2>
+        <ul class="endlist">${f.tierCounts.map((n, ti) => `<li><span>${sym(ti)} <span style="margin-left:6px">${esc(config.tiers[ti].name)}</span></span><b>${n}명</b></li>`).join('')}</ul></div>`;
+    }
+    html += `<div class="card small muted">스타파워가 끝났어요. 이제 함께 이야기를 나눠봐요.</div>`;
+    html += `<div style="text-align:center"><button class="link" id="logout">다른 사람으로 로그인</button></div>`;
+    $app.innerHTML = html;
+    bindMain();
+  }
+
+  // 직전 집계 대비 순위 변화 (직전 순위가 없으면 표시하지 않음)
+  function rankDeltaHtml(me) {
+    if (me.prevRank == null || me.rank == null) return '';
+    const d = me.prevRank - me.rank;
+    if (d > 0) return `<div class="delta">▲ ${d}계단 상승 (${me.prevRank}위 → ${me.rank}위)</div>`;
+    if (d < 0) return `<div class="delta">▼ ${-d}계단 하락 (${me.prevRank}위 → ${me.rank}위)</div>`;
+    return `<div class="delta">순위 그대로 (${me.rank}위)</div>`;
+  }
+
+  function renderInput() {
+    const { config, submission } = data;
+    const counts = {};
+    draft.forEach((c) => (counts[c] = (counts[c] || 0) + 1));
+    const calc = scoreBreakdown(draft);
+    const full = draft.length >= config.maxChips;
+    const slots = [];
+    for (let i = 0; i < config.maxChips; i++) {
+      slots.push(draft[i]
+        ? `<button class="slot" data-rm="${i}" aria-label="${esc(colorName(draft[i]))} 칩 빼기">${chipDot(draft[i], 'lg')}</button>`
+        : `<span class="slot">${chipDot('x', 'lg empty')}</span>`);
+    }
+    const sameAsSaved = submission && JSON.stringify(submission.chips) === JSON.stringify(draft) && (submission.bonus || 0) === bonusDraft;
+    const bonusPts = bonusDraft * config.bonusValue;
+    const canSubmit = draft.length > 0 || bonusDraft > 0;
+    return `
+    <div class="card">
+      <h2>라운드 ${data.round} 칩 입력</h2>
+      <p class="muted small" style="margin:0">손에 있는 칩 중 점수 계산에 쓸 칩을 최대 ${config.maxChips}개 골라주세요. 아래 색을 누르면 추가되고, 위의 칩을 누르면 빠져요.</p>
+      <div class="slots">${slots.join('')}</div>
+      <div class="palette">
+        ${config.colors.map((c) => `
+          <button class="pal" data-add="${esc(c.key)}" ${full ? 'disabled' : ''}>
+            ${chipDot(c.key, 'lg')}<span>${esc(c.name)}</span><span class="cnt">${counts[c.key] || 0}개</span>
+          </button>`).join('')}
+      </div>
+      <div class="bonusrow" style="display:flex;align-items:center;gap:10px;margin:14px 0 4px;padding-top:12px;border-top:1px solid var(--line)">
+        <div style="flex:1"><b>보너스 칩</b><div class="small muted">개당 +${config.bonusValue}점 · 칩 개수와 따로 세요</div></div>
+        <button class="btn" id="bonusMinus" aria-label="보너스 칩 줄이기" ${bonusDraft <= 0 ? 'disabled' : ''}>−</button>
+        <b style="min-width:2em;text-align:center;font-size:20px" id="bonusN">${bonusDraft}</b>
+        <button class="btn" id="bonusPlus" aria-label="보너스 칩 늘리기" ${bonusDraft >= config.maxBonus ? 'disabled' : ''}>+</button>
+      </div>
+      ${canSubmit ? `
+        <ul class="breakdown">${calc.parts.map((p) => `<li><span>${esc(colorName(p.key))} ${p.n}개</span><b>${p.pts}점</b></li>`).join('')}${bonusDraft ? `<li><span>보너스 칩 ${bonusDraft}개</span><b>${bonusPts}점</b></li>` : ''}</ul>
+        <div class="total"><span>예상 점수</span><span class="n">${calc.total + bonusPts}점</span></div>`
+        : `<div style="height:14px"></div>`}
+      <div style="display:flex; gap:8px">
+        <button class="btn" id="clear" ${canSubmit ? '' : 'disabled'}>모두 지우기</button>
+        <button class="btn primary" id="submit" style="flex:1" ${canSubmit && !busy && !sameAsSaved ? '' : 'disabled'}>${submission ? '수정해서 다시 제출' : '진행자에게 제출'}</button>
+      </div>
+      ${submission ? `<p class="small" style="margin:10px 0 0;color:var(--ok)">제출했어요 (${scoreBreakdown(submission.chips).total + (submission.bonus || 0) * config.bonusValue}점). 집계가 마감되기 전까지 수정할 수 있어요.</p>` : ''}
+      ${draft.length && draft.length < config.maxChips ? `<p class="small muted" style="margin:6px 0 0">칩을 ${draft.length}개만 입력했어요.</p>` : ''}
+    </div>`;
+  }
+
+  function renderRuleTable() {
+    const { config } = data;
+    const head = Array.from({ length: config.maxChips }, (_, i) => `<th>${i + 1}개</th>`).join('');
+    const rows = config.colors.map((c) => `<tr><th style="white-space:nowrap">${chipDot(c.key, 'sm')} ${esc(c.name)}</th>${(config.scoreTable[c.key] || []).map((v) => `<td>${v}</td>`).join('')}</tr>`).join('');
+    return `<div class="card"><details><summary>점수표 보기</summary>
+      <table class="rule" style="margin-top:10px"><tr><th></th>${head}</tr>${rows}</table>
+      <p class="small muted" style="margin:8px 0 0">색마다 가진 개수에 해당하는 점수를 모두 더해요.</p></details></div>`;
+  }
+
+  function bindMain() {
+    $app.querySelectorAll('[data-add]').forEach((b) => (b.onclick = () => { if (draft.length < data.config.maxChips) { draft.push(b.dataset.add); render(); } }));
+    $app.querySelectorAll('[data-rm]').forEach((b) => (b.onclick = () => { draft.splice(Number(b.dataset.rm), 1); render(); }));
+    const clear = document.getElementById('clear'); if (clear) clear.onclick = () => { draft = []; bonusDraft = 0; render(); };
+    const bm = document.getElementById('bonusMinus'); if (bm) bm.onclick = () => { if (bonusDraft > 0) { bonusDraft--; render(); } };
+    const bp = document.getElementById('bonusPlus'); if (bp) bp.onclick = () => { if (bonusDraft < data.config.maxBonus) { bonusDraft++; render(); } };
+    const ack = document.getElementById('ack'); if (ack) ack.onclick = () => { store.set('ack-' + data.me.id, String(data.tallyCount)); render(); };
+    const lo = document.getElementById('logout'); if (lo) lo.onclick = () => { token = null; store.del('sp-token'); data = null; lastJson = ''; render(); };
+    const sub = document.getElementById('submit');
+    if (sub) sub.onclick = async () => {
+      busy = true; render();
+      try {
+        const d = await api('/api/submit', { method: 'POST', body: JSON.stringify({ chips: draft, bonus: bonusDraft }) });
+        data = d; draft = d.submission.chips.slice(); bonusDraft = d.submission.bonus || 0; toast = '제출했어요';
+      } catch (e) { toast = e.message; }
+      busy = false; render();
+      setTimeout(() => { toast = ''; render(); }, 2500);
+    };
+  }
+
+  function render() {
+    if (!token || !data) return renderLogin();
+    if (data.ended) return renderEnded();
+    renderMain();
+  }
+
+  // ---- 갱신 -------------------------------------------------------
+  // 서버가 변경을 바로 알려줄 수 있으면(push) SSE 를 쓰고 가끔만 확인하고,
+  // 아니면(Netlify 등 서버리스) 4초 안팎으로 계속 확인한다.
+  let debounce = null, es = null;
+  function ensureSse(push) {
+    if (!push || es) return;
+    try {
+      es = new EventSource('/api/events');
+      es.addEventListener('update', () => { clearTimeout(debounce); debounce = setTimeout(refresh, 150 + Math.random() * 600); });
+    } catch (e) {}
+  }
+  function schedule() {
+    const base = data && data.push ? 20000 : 4000;
+    setTimeout(async () => {
+      if (token && document.visibilityState === 'visible') await refresh();
+      schedule();
+    }, base + Math.random() * 1500);
+  }
+  schedule();
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refresh(); });
+
+  render();
+  refresh();
+})();
+</script>
+</body>
+</html>
