@@ -3,24 +3,25 @@
   if (typeof module === 'object' && module.exports) module.exports = factory();
   else root.SP = factory();
 })(typeof self !== 'undefined' ? self : this, function () {
+  // 칩 색 순서는 점수가 높은 칩부터다 (2026-11 칩 교체: 빨 - 파 - 노 - 하 - 초)
   const DEFAULT_COLORS = [
-    { key: 'yellow', name: '노랑' },
-    { key: 'green', name: '초록' },
     { key: 'red', name: '빨강' },
     { key: 'blue', name: '파랑' },
+    { key: 'yellow', name: '노랑' },
     { key: 'white', name: '하양' },
+    { key: 'green', name: '초록' },
   ];
 
-  // 평등위_스타 파워 문서의 점수표 (색상 x 개수)
+  // 평등위_스타 파워 문서의 점수표 (색상 x 개수). 칩 색이 바뀌어도 점수는 순서(1번째 칩 ~ 5번째 칩)를 따른다
   const DEFAULT_TABLE = {
-    yellow: [8, 16, 24, 32, 40],
-    green: [4, 8, 12, 16, 20],
-    red: [3, 6, 9, 14, 18],
-    blue: [2, 4, 6, 13, 17],
-    white: [1, 2, 3, 12, 16],
+    red: [8, 16, 24, 32, 40],
+    blue: [4, 8, 12, 16, 20],
+    yellow: [3, 6, 9, 14, 18],
+    white: [2, 4, 6, 13, 17],
+    green: [1, 2, 3, 12, 16],
   };
 
-  // chips: ['yellow','white',...]  table: {yellow:[n=1점, n=2점, ...]}
+  // chips: ['red','white',...]  table: {red:[n=1점, n=2점, ...]}
   // 색상별로 가진 개수에 해당하는 점수를 찾아 모두 더한다. (누적이 아닌 현재 조합 기준)
   function calcScore(chips, table) {
     const cnt = {};
