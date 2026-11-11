@@ -33,7 +33,7 @@ console.log('OK 예전 데이터 이전: 빈 아이디 정리, 정원 새 기본
   Object.assign(old, { round: 3, open: true, bonus: { x: 1 }, tallyCount: 3, ended: null });
   old.settings.merged = true;
   old.participants = [
-    { id: 'find-1', pool: 'find', t0: 1, n: 1, name: '김하늘', pin: '11', birth: '2007-01-01', enroll: '2024-03', cls: 0, rank: 2, prevRank: 3, groupSize: 5, prevCls: 1, change: 'up', chips: ['red'], base: 5, bonusN: 1, score: 8, missing: false, present: true, started: true },
+    { id: 'find-1', pool: 'find', t0: 1, n: 1, name: '김하늘', pin: '11', birth: '2007-01-01', enroll: '2024-03', cls: 0, rank: 2, prevRank: 3, groupSize: 5, prevCls: 1, change: 'up', chips: ['white'], base: 5, bonusN: 1, score: 8, missing: false, present: true, started: true },
   ];
   const og = makeGame({ core: old, history: {}, subs: {} });
   assert(old.games && ['find', 'kku', 'all'].every((k) => old.games[k].round === 0 && !old.games[k].open), '반별 진행 상태가 새로 생김');
@@ -56,3 +56,23 @@ console.log('OK 예전 데이터 이전: 빈 아이디 정리, 정원 새 기본
 const SP = require('../public/shared.js');
 assert.strictEqual(SP.minPossibleScore(SP.DEFAULT_TABLE, 5), 7);
 console.log('OK 최저 가능 점수 7 (칩 5개, 기본 점수표)');
+
+// 2.2.2 기본값 변경: 예전 기본값이 그대로 저장돼 있으면 새 기본값으로, 직접 고쳤거나 게임이 시작됐으면 그대로 둔다
+{
+  const OLD_TABLE = { yellow: [8, 16, 24, 32, 40], green: [4, 8, 12, 16, 20], red: [3, 6, 9, 14, 18], blue: [2, 4, 6, 13, 17], white: [1, 2, 3, 12, 16] };
+  const OLD_COLORS = ['yellow', 'green', 'red', 'blue', 'white'].map((k) => ({ key: k, name: k }));
+  const OLD_TIERS = [{ name: '네모', symbol: '■', color: '#7c3aed' }, { name: '세모', symbol: '▲', color: '#0d9488' }, { name: '동그라미', symbol: '●', color: '#ea580c' }];
+  const mk = (edit) => { const c = freshCore('pw'); delete c.settings.chipV; delete c.settings.tierV; c.settings.colors = JSON.parse(JSON.stringify(OLD_COLORS)); c.settings.scoreTable = JSON.parse(JSON.stringify(OLD_TABLE)); c.settings.tiers = JSON.parse(JSON.stringify(OLD_TIERS)); if (edit) edit(c); makeGame({ core: c, history: {}, subs: {} }); return c; };
+  let c = mk();
+  assert.deepStrictEqual(c.settings.colors.map((x) => x.key), ['red', 'blue', 'yellow', 'white', 'green']);
+  assert.deepStrictEqual(c.settings.scoreTable.green, [1, 2, 3, 12, 16]);
+  assert.deepStrictEqual(c.settings.tiers.map((t) => t.name), ['하트', '다이아몬드', '클로버']);
+  c = mk((x) => { x.settings.scoreTable.yellow[0] = 9; x.settings.tiers[0].name = '왕'; });
+  assert.strictEqual(c.settings.scoreTable.yellow[0], 9, '직접 고친 점수표는 그대로');
+  assert.deepStrictEqual(c.settings.colors.map((x) => x.key), ['yellow', 'green', 'red', 'blue', 'white']);
+  assert.strictEqual(c.settings.tiers[0].name, '왕', '직접 고친 계급은 그대로');
+  c = mk((x) => { x.games.find.round = 2; });
+  assert.deepStrictEqual(c.settings.colors.map((x) => x.key), ['yellow', 'green', 'red', 'blue', 'white'], '게임이 시작된 뒤에는 점수표를 바꾸지 않는다');
+  assert.strictEqual(c.settings.tiers[0].name, '하트', '계급 이름·색은 이미 기본값이면 바로 바뀐다');
+  console.log('OK 2.2.2 기본값 이전: 예전 기본값이면 새 값으로, 직접 고쳤거나 게임 시작 후에는 유지');
+}

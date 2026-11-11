@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>스타파워 진행자</title>
-<link rel="stylesheet" href="/style.css?v=2.2.2">
+<link rel="stylesheet" href="/style.css?v=2.2.3">
 <style>
   .page { max-width: 1240px; margin: 0 auto; padding: 14px 18px 60px; }
   header.bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
@@ -91,8 +91,8 @@
 </head>
 <body>
 <div class="page" id="root"></div>
-<script src="/shared.js?v=2.2.2"></script>
-<script src="/vendor/qrcode.js?v=2.2.2"></script>
+<script src="/shared.js?v=2.2.3"></script>
+<script src="/vendor/qrcode.js?v=2.2.3"></script>
 <script>
 (function () {
   'use strict';
@@ -175,7 +175,7 @@
   const histLabel = (h) => (S.settings.merged && h.group !== 'all' && S.settings.pools[h.group] ? `${S.settings.pools[h.group].name} 라운드 ${h.round}` : `라운드 ${h.round}`);
   const histShort = (h) => (S.settings.merged && h.group !== 'all' && S.settings.pools[h.group] ? `${S.settings.pools[h.group].short} R${h.round}` : `R${h.round}`);
   const colorName = (k) => (colors().find((c) => c.key === k) || {}).name || k;
-  const APP_VERSION = '2.2.2'; // 서버(lib/version.js)와 같아야 한다
+  const APP_VERSION = '2.2.3'; // 서버(lib/version.js)와 같아야 한다
   // 칩을 정확히 n개 가졌을 때 나올 수 있는 가장 낮은 점수. shared.js 가 예전 파일이어도 화면이 깨지지 않도록 여기에도 둔다.
   const minPossible = SP.minPossibleScore || ((table, n) => {
     let dp = Array(n + 1).fill(Infinity); dp[0] = 0;

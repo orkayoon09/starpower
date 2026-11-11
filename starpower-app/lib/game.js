@@ -88,6 +88,24 @@ function makeGame({ core, history, subs }) {
       s.sizeOverride = { find: null, kku: null, all: null };
       s.schema = 2;
     }
+    // 2.2.2: 칩 색 순서·점수표·계급 기본값이 바뀌었다. 저장된 값이 예전 기본값 그대로(직접 고친 적 없음)면 새 기본값으로 바꾼다.
+    // 점수표는 아직 아무 라운드도 시작하지 않았을 때만 바꾼다(진행 중인 게임의 점수가 갑자기 달라지지 않도록). 그 뒤에는 설정 탭의 '문서 기본값으로 복원'을 쓴다.
+    if (s.chipV !== 2 && s.colors && s.scoreTable) {
+      const d = defaultSettings();
+      const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+      const OLD_ORDER = ['yellow', 'green', 'red', 'blue', 'white'];
+      const OLD_TABLE = { yellow: [8, 16, 24, 32, 40], green: [4, 8, 12, 16, 20], red: [3, 6, 9, 14, 18], blue: [2, 4, 6, 13, 17], white: [1, 2, 3, 12, 16] };
+      const oldChips = same(s.colors.map((c) => c.key), OLD_ORDER) && OLD_ORDER.every((k) => same((s.scoreTable[k] || []).slice(0, 5), OLD_TABLE[k]));
+      const notStarted = Object.values(core.games || {}).every((g) => !g || (!g.round && !g.open));
+      if (oldChips && notStarted && !(core.participants || []).some((p) => p.started)) { s.colors = d.colors; s.scoreTable = d.scoreTable; s.chipV = 2; }
+      else if (!oldChips) s.chipV = 2; // 이미 직접 고친 설정이라 건드리지 않는다
+    }
+    if (s.tierV !== 2 && s.tiers) {
+      const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+      const OLD_TIERS = [{ name: '네모', symbol: '■', color: '#7c3aed' }, { name: '세모', symbol: '▲', color: '#0d9488' }, { name: '동그라미', symbol: '●', color: '#ea580c' }];
+      if (same(s.tiers, OLD_TIERS)) s.tiers = defaultSettings().tiers;
+      s.tierV = 2;
+    }
     if (s.maxBonus === undefined) s.maxBonus = 10;
     if (!s.alerts) s.alerts = defaultSettings().alerts;
     if (!core.nextId) core.nextId = 1;
